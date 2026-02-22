@@ -165,6 +165,43 @@ function TimeWheelPicker({ value, onChange, disabled }) {
   );
 }
 
+// ── Threshold stepper with preset chips ───────────────────────────────────────
+
+function ThresholdStepper({ label, value, onChange, min, max, step = 1, presets }) {
+  return (
+    <div>
+      <label className="text-xs text-ink-400 block mb-2">{label}</label>
+      <div className="flex items-center gap-2 mb-2">
+        <button
+          onClick={() => onChange(Math.max(min, value - step))}
+          className="w-7 h-7 rounded-lg bg-ink-800 border border-ink-700 text-ink-300 hover:bg-ink-700 hover:text-ink-100 flex items-center justify-center text-sm font-mono transition-all active:scale-95">
+          −
+        </button>
+        <span className="font-mono text-base font-bold text-accent min-w-[3.5rem] text-center">
+          {value}m
+        </span>
+        <button
+          onClick={() => onChange(Math.min(max, value + step))}
+          className="w-7 h-7 rounded-lg bg-ink-800 border border-ink-700 text-ink-300 hover:bg-ink-700 hover:text-ink-100 flex items-center justify-center text-sm font-mono transition-all active:scale-95">
+          +
+        </button>
+      </div>
+      <div className="flex flex-wrap gap-1">
+        {presets.map(p => (
+          <button key={p} onClick={() => onChange(p)}
+            className={`text-xs px-2 py-0.5 rounded-md font-mono transition-all ${
+              value === p
+                ? 'bg-accent/20 text-accent border border-accent/40'
+                : 'bg-ink-800 text-ink-500 hover:text-ink-300 border border-ink-700 hover:border-ink-500'
+            }`}>
+            {p}m
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Config panel ───────────────────────────────────────────────────────────────
 
 function ConfigPanel({ hasChanges, onApply, onCancel, hasGoBack, onGoBack }) {
@@ -217,25 +254,21 @@ function ConfigPanel({ hasChanges, onApply, onCancel, hasGoBack, onGoBack }) {
       {/* Thresholds */}
       <div>
         <p className="label mb-3">Thresholds (minutes)</p>
-        <div className="space-y-3">
-          <div>
-            <div className="flex justify-between mb-1">
-              <label className="text-xs text-ink-400">Late after</label>
-              <span className="text-xs font-mono text-accent">{config.lateThreshold}m</span>
-            </div>
-            <input type="range" min={0} max={60} value={config.lateThreshold}
-              onChange={e => setConfig({ lateThreshold: +e.target.value })}
-              className="w-full accent-accent" />
-          </div>
-          <div>
-            <div className="flex justify-between mb-1">
-              <label className="text-xs text-ink-400">Absent after</label>
-              <span className="text-xs font-mono text-accent">{config.absentThreshold}m</span>
-            </div>
-            <input type="range" min={0} max={240} value={config.absentThreshold}
-              onChange={e => setConfig({ absentThreshold: +e.target.value })}
-              className="w-full accent-accent" />
-          </div>
+        <div className="space-y-4">
+          <ThresholdStepper
+            label="Late after"
+            value={config.lateThreshold}
+            onChange={v => setConfig({ lateThreshold: v })}
+            min={0} max={60} step={1}
+            presets={[5, 10, 15, 20, 30]}
+          />
+          <ThresholdStepper
+            label="Absent after"
+            value={config.absentThreshold}
+            onChange={v => setConfig({ absentThreshold: v })}
+            min={0} max={240} step={5}
+            presets={[20, 30, 45, 60, 90]}
+          />
         </div>
       </div>
 
@@ -449,6 +482,7 @@ export default function DashboardPage() {
     config, setConfig, committedConfig, commitConfig, originalConfig,
     setOriginalConfig, clearCommittedConfig, students, numSessions,
     setResults, clearResults, resultsRestoredAt, clearPersistedOnly,
+    parsedFiles, setParsedFiles, addParsedFiles, removeParsedFile, clearParsedFiles,
   } = useAppStore();
   const {
     rowsPerPage, defaultSort, exportFormat,
@@ -457,7 +491,6 @@ export default function DashboardPage() {
     atRiskThreshold, autoReanalyze, anonymizeExports,
   } = useSettingsStore();
 
-  const [parsedFiles, setParsedFiles] = useState([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState(defaultSort);
@@ -478,11 +511,7 @@ export default function DashboardPage() {
     const toastId = toast.loading(`Parsing ${xlsxFiles.length} file(s)...`);
     try {
       const parsed = await Promise.all(xlsxFiles.map(parseExcelFile));
-      setParsedFiles(prev => {
-        const existing = new Set(prev.map(f => f.filename));
-        const newFiles = parsed.filter(f => !existing.has(f.filename));
-        return [...prev, ...newFiles];
-      });
+      addParsedFiles(parsed);
 
       if (!config.timesLocked) {
         const detected = autoDetectClassTimes(parsed);
@@ -498,7 +527,7 @@ export default function DashboardPage() {
     } catch (err) {
       toast.error(err.message, { id: toastId });
     }
-  }, [config.timesLocked]);
+  }, [config.timesLocked, addParsedFiles, setConfig]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -542,7 +571,7 @@ export default function DashboardPage() {
   };
 
   const handleClear = () => {
-    setParsedFiles([]);
+    clearParsedFiles();
     clearResults();
     clearCommittedConfig();
     setConfig({ timesLocked: false });
@@ -573,7 +602,7 @@ export default function DashboardPage() {
   };
 
   const removeFile = (filename) => {
-    setParsedFiles(prev => prev.filter(f => f.filename !== filename));
+    removeParsedFile(filename);
     if (parsedFiles.length <= 1) { clearResults(); setConfig({ timesLocked: false }); }
   };
 
@@ -628,27 +657,39 @@ export default function DashboardPage() {
     },
     {
       id: 'totalClasses', label: 'Total', align: 'center',
-      render: (s) => <span className="text-sm font-medium text-ink-300">{s.normal + s.late + s.absent}</span>,
+      render: (s) => s.role?.toLowerCase() === 'organizer'
+        ? <span className="text-ink-700 text-xs">—</span>
+        : <span className="text-sm font-medium text-ink-300">{s.normal + s.late + s.absent}</span>,
     },
     {
       id: 'onTime', label: 'On-Time', align: 'center',
-      render: (s) => <span className="badge-normal">{s.normal}</span>,
+      render: (s) => s.role?.toLowerCase() === 'organizer'
+        ? <span className="text-ink-700 text-xs">—</span>
+        : <span className="badge-normal">{s.normal}</span>,
     },
     {
       id: 'late', label: 'Late', align: 'center',
-      render: (s) => <span className="badge-late">{s.late}</span>,
+      render: (s) => s.role?.toLowerCase() === 'organizer'
+        ? <span className="text-ink-700 text-xs">—</span>
+        : <span className="badge-late">{s.late}</span>,
     },
     {
       id: 'absent', label: 'Absent', align: 'center',
-      render: (s) => <span className="badge-absent">{s.absent}</span>,
+      render: (s) => s.role?.toLowerCase() === 'organizer'
+        ? <span className="text-ink-700 text-xs">—</span>
+        : <span className="badge-absent">{s.absent}</span>,
     },
     {
       id: 'grade', label: 'Grade', align: 'center',
-      render: (s) => <GradeBadge gradeObj={getGrade(s.score, config.maxScore, gradeThresholds)} />,
+      render: (s) => s.role?.toLowerCase() === 'organizer'
+        ? <span className="text-ink-700 text-xs">—</span>
+        : <GradeBadge gradeObj={getGrade(s.score, config.maxScore, gradeThresholds)} />,
     },
     {
       id: 'score', label: 'Score', align: 'right',
       render: (s) => {
+        if (s.role?.toLowerCase() === 'organizer')
+          return <span className="text-ink-700 text-xs">—</span>;
         const color = getScoreColor(s.score, config.maxScore, highScoreThreshold, midScoreThreshold);
         return (
           <span className="text-sm font-bold font-mono" style={{ color }}>

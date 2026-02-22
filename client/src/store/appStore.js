@@ -64,6 +64,7 @@ export const useAppStore = create((set) => ({
   numSessions: persisted?.numSessions || 0,
   fileNames: persisted?.fileNames || [],
   resultsRestoredAt: persisted?.savedAt || null,
+  parsedFiles: [],
 
   setConfig: (partial) => set((s) => ({ config: { ...s.config, ...partial } })),
   resetConfig: () => set({ config: getSavedDefaults() }),
@@ -85,4 +86,18 @@ export const useAppStore = create((set) => ({
     clearPersistedResults();
     set({ resultsRestoredAt: null });
   },
+
+  setParsedFiles: (files) => set({ parsedFiles: files }),
+  
+  addParsedFiles: (newFiles) => set((s) => {
+    const existing = new Set(s.parsedFiles.map(f => f.filename));
+    const toAdd = newFiles.filter(f => !existing.has(f.filename));
+    return { parsedFiles: [...s.parsedFiles, ...toAdd] };
+  }),
+
+  removeParsedFile: (filename) => set((s) => ({
+    parsedFiles: s.parsedFiles.filter(f => f.filename !== filename),
+  })),
+
+  clearParsedFiles: () => set({ parsedFiles: [] }),
 }));
