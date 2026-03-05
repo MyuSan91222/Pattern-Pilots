@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Search, Trash2, Shield, User, RefreshCw, MessageCircle, Lock, Unlock, AlertCircle, ClipboardList, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { Search, Trash2, Shield, User, RefreshCw, MessageCircle, Lock, Unlock, AlertCircle, ClipboardList, CheckCircle, XCircle, Clock, Users, Layers } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { adminApi, gcApi } from '../api';
 
@@ -244,14 +244,22 @@ export default function AdminPage() {
 
       {/* Tabs */}
       <div className="flex gap-1 p-1 bg-ink-900 rounded-lg mb-6 overflow-x-auto hide-scrollbar animate-in fade-in slide-in-from-left duration-700" style={{animationDelay: '150ms'}}>
-        {['users', 'activity', 'messages', 'groups', 'requests', 'appeals'].map(t => (
-          <button key={t} onClick={() => { setTab(t); setPage(1); setSearch(''); }}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-all capitalize ${
-              tab === t 
+        {[
+          { id: 'users', label: 'Users', icon: User },
+          { id: 'activity', label: 'Activity', icon: ClipboardList },
+          { id: 'messages', label: 'Messages', icon: MessageCircle },
+          { id: 'groups', label: 'Groups', icon: Layers },
+          { id: 'requests', label: 'Requests', icon: AlertCircle },
+          { id: 'appeals', label: 'Appeals', icon: Clock },
+        ].map(({ id, label, icon: Icon }) => (
+          <button key={id} onClick={() => { setTab(id); setPage(1); setSearch(''); }}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${
+              tab === id
                 ? 'bg-ink-800 text-ink-100 shadow-lg shadow-accent/30' 
                 : 'text-ink-500 hover:text-accent hover:bg-ink-800/50 hover:scale-105'
             }`} style={{ fontFamily: 'Syne' }}>
-            {t}
+            <Icon size={14} />
+            {label}
           </button>
         ))}
       </div>
