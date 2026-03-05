@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { LogOut, Shield, LayoutDashboard, Settings, HelpCircle, SearchCheck, MessageSquare, User } from 'lucide-react';
+import { LogOut, Shield, LayoutDashboard, Settings, HelpCircle, SearchCheck, Users, Mail, User } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../hooks/useAuth';
 import { gcApi } from '../../api';
@@ -48,8 +48,8 @@ export default function Navbar() {
     ...(isAdmin ? [] : [{ to: '/profile', label: 'Profile', icon: User }]),
     ...(isAdmin ? [{ to: '/admin', label: 'Admin', icon: Shield }] : []),
     ...(canSeeLostFound ? [{ to: '/lost-found', label: 'Lost & Found', icon: SearchCheck }] : []),
-    ...(canSeeLostFound ? [{ to: '/group-chat', label: 'Groups', icon: MessageSquare, unread: groupUnread }] : []),
-    ...(canSeeLostFound ? [{ to: '/messages', label: 'Messages', icon: MessageSquare }] : []),
+    ...(canSeeLostFound ? [{ to: '/group-chat', label: 'Groups', icon: Users, unread: groupUnread }] : []),
+    ...(canSeeLostFound ? [{ to: '/messages', label: 'Messages', icon: Mail }] : []),
     { to: '/settings', label: 'Settings', icon: Settings },
     { to: '/help', label: 'Help', icon: HelpCircle },
   ];
