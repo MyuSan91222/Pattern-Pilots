@@ -53,74 +53,168 @@
 }
 
 @layer components {
+  /* Apple Glassmorphism - Main Glass Card */
+  .glass-card {
+    @apply backdrop-blur-md border border-white/10 rounded-2xl transition-all duration-300 ease-out;
+    background: rgba(255, 255, 255, 0.05);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+
+  .glass-card:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.15);
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    transform: translateY(-4px);
+  }
+
+  /* Apple Glassmorphism - Elevated Glass */
+  .glass-elevated {
+    @apply glass-card;
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  }
+
+  /* Apple Glassmorphism - Subtle Glass for secondary elements */
+  .glass-subtle {
+    @apply backdrop-blur-sm border border-white/5 rounded-xl transition-all duration-300 ease-out;
+    background: rgba(255, 255, 255, 0.03);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+
+  .glass-subtle:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+
+  /* Primary Button - Apple Style */
   .btn-primary {
-    @apply bg-accent text-white font-semibold px-5 py-2.5 rounded-lg
-           hover:bg-accent-hover active:bg-accent-dark active:scale-[0.97]
-           transition-all duration-500 ease-out
-           disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100
-           relative overflow-hidden border-0;
+    @apply bg-accent text-white font-semibold px-6 py-2.5 rounded-lg
+           hover:bg-accent-hover active:bg-accent-dark active:scale-95
+           transition-all duration-300 ease-out
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100
+           relative overflow-hidden border-0 shadow-lg;
     font-family: 'Syne', sans-serif;
     font-size: 0.875rem;
-    letter-spacing: 0.01em;
+    letter-spacing: 0.5px;
     position: relative;
-    --magnifier-x: 50%;
-    --magnifier-y: 50%;
   }
 
   .btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(200,200,200,0.25), 0 12px 24px rgba(150,150,150,0.15);
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px rgba(61, 169, 252, 0.35), 0 0 0 0 rgba(61, 169, 252, 0.1);
   }
 
   .btn-primary:active {
-    transform: scale(0.95);
-    box-shadow: inset 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.05);
-    transition-duration: 100ms;
+    transform: scale(0.96);
+    box-shadow: 0 2px 8px rgba(61, 169, 252, 0.2), inset 0 1px 3px rgba(0,0,0,0.15);
+    transition-duration: 150ms;
   }
 
+  .btn-primary:disabled {
+    background: rgba(61, 169, 252, 0.4);
+  }
+
+  /* Ghost Button - Apple Style */
   .btn-ghost {
-    @apply font-medium px-4 py-2 rounded-lg active:scale-[0.97] transition-all duration-500 ease-out
-           relative overflow-hidden;
-    color: rgb(var(--text-secondary));
-    background-color: transparent;
+    @apply font-semibold px-5 py-2 rounded-lg active:scale-95 transition-all duration-300 ease-out
+           relative overflow-hidden border border-white/10;
+    background: rgba(255, 255, 255, 0.05);
+    color: rgb(226, 232, 240);
     position: relative;
-    --magnifier-x: 50%;
-    --magnifier-y: 50%;
+    backdrop-filter: blur(8px);
   }
 
   .btn-ghost:hover {
-    background-color: rgb(var(--bg-tertiary));
-    color: rgb(var(--text-primary));
-    transform: translateY(-2px);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: rgb(255, 255, 255);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
   }
 
   .btn-ghost:active {
-    transform: scale(0.95);
-    box-shadow: inset 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.05);
-    transition-duration: 100ms;
+    transform: scale(0.94);
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+    transition-duration: 150ms;
+  }
+
+  /* Input Fields - Glass Style */
+  .input {
+    @apply w-full px-4 py-2.5 rounded-lg border border-white/10
+           bg-white/5 backdrop-blur-sm
+           text-ink-100 placeholder-ink-600
+           focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent/30
+           transition-all duration-300 ease-out;
+    font-size: 0.875rem;
+    font-family: var(--font-body), sans-serif;
+  }
+
+  .input:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.15);
+  }
+
+  .input:focus {
+    background: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 0 0 3px rgba(61, 169, 252, 0.1), inset 0 1px 2px rgba(0,0,0,0.05);
+  }
+
+  /* Glass Form Group */
+  .glass-form-group {
+    @apply space-y-2;
+  }
+
+  .glass-form-group label {
+    @apply text-sm font-semibold text-ink-300 block;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* Glass Badge */
+  .glass-badge {
+    @apply inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: rgb(226, 232, 240);
+    backdrop-filter: blur(8px);
+  }
+
+  .glass-badge:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.3);
+  }
+
+  /* Glass Divider */
+  .glass-divider {
+    @apply my-4;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
   }
 
   .btn-danger {
-    @apply font-medium px-4 py-2 rounded-lg active:scale-[0.97] transition-all duration-500 ease-out
-           relative overflow-hidden;
-    background-color: rgba(239, 69, 101, 0.1);
+    @apply font-semibold px-5 py-2 rounded-lg active:scale-95 transition-all duration-300 ease-out
+           relative overflow-hidden border border-red-500/30;
+    background: rgba(239, 69, 101, 0.12);
     color: #ef4565;
+    backdrop-filter: blur(8px);
     position: relative;
-    --magnifier-x: 50%;
-    --magnifier-y: 50%;
   }
 
   .btn-danger:hover {
-    background-color: rgba(239, 69, 101, 0.2);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(200,200,200,0.25), 0 12px 24px rgba(150,150,150,0.15);
+    background: rgba(239, 69, 101, 0.2);
+    border-color: rgba(239, 69, 101, 0.5);
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px rgba(239, 69, 101, 0.2);
   }
 
   .btn-danger:active {
-    transform: scale(0.95);
-    box-shadow: inset 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.05);
-    transition-duration: 100ms;
+    transform: scale(0.94);
+    background: rgba(239, 69, 101, 0.15);
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+    transition-duration: 150ms;
   }
 
   /* ── iPhone mirror-glass button styles ── */
@@ -282,9 +376,19 @@
     animation: appstoreDrop 1000ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
   }
 
-  /* Dashboard hover effects - Apple Store style */
+  /* Dashboard hover effects - Apple Store style with Glass */
   .card {
-    @apply bg-ink-950 border border-ink-700 rounded-xl shadow-sm transition-all duration-500 ease-out;
+    @apply rounded-2xl shadow-md transition-all duration-300 ease-out;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(12px);
+  }
+
+  .card:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.15);
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    transform: translateY(-4px);
   }
 
   /* Initial hidden state - only for protected pages with scroll observer */
@@ -301,7 +405,7 @@
   }
 
   .card-hover {
-    @apply hover:border-accent/50 hover:shadow-lg hover:shadow-accent/20 hover:scale-[1.01];
+    @apply hover:scale-[1.02];
   }
 
   /* Stagger animations for card children */
@@ -317,23 +421,26 @@
     animation: scrollFadeIn 850ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
   }
 
-  /* ── Lost & Found Card Mirror Hover Effect ── */
+  /* ── Lost & Found Card Mirror Hover Effect - Glass Style ── */
   .lostfound-card {
-    @apply bg-ink-950 border border-ink-700 rounded-xl shadow-sm transition-all duration-500 ease-out;
+    @apply rounded-2xl shadow-md transition-all duration-300 ease-out;
     position: relative;
     overflow: hidden;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(12px);
   }
 
   .lostfound-card:hover {
-    @apply border-accent/40 shadow-lg;
-    box-shadow: 0 16px 32px rgba(61, 169, 252, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-    transform: translateY(-2px);
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(61, 169, 252, 0.3);
+    box-shadow: 0 16px 48px rgba(61, 169, 252, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    transform: translateY(-6px);
   }
 
   .lostfound-card:active {
-    @apply shadow-md;
-    transform: scale(0.95) translateY(0);
-    transition-duration: 100ms;
+    transform: scale(0.96) translateY(-2px);
+    transition-duration: 150ms;
   }
 
   /* ── Lost & Found Card Design Style Variants ───────────────────────────────── */
