@@ -3,19 +3,35 @@ import { create } from 'zustand';
 const STORAGE_KEY = 'aa_lostfound';
 
 export const CATEGORIES = [
-  { id: 'electronics', label: 'Electronics',        emoji: '📱' },
-  { id: 'clothing',    label: 'Clothing',            emoji: '👕' },
-  { id: 'bags',        label: 'Bags & Wallets',      emoji: '👜' },
-  { id: 'jewelry',     label: 'Jewelry',             emoji: '💍' },
-  { id: 'keys',        label: 'Keys',                emoji: '🔑' },
-  { id: 'documents',   label: 'Documents & IDs',     emoji: '📄' },
-  { id: 'pets',        label: 'Pets',                emoji: '🐾' },
-  { id: 'books',       label: 'Books & Education',   emoji: '📚' },
-  { id: 'sports',      label: 'Sports & Gear',       emoji: '⚽' },
-  { id: 'glasses',     label: 'Glasses & Eyewear',   emoji: '👓' },
-  { id: 'toys',        label: 'Toys & Games',        emoji: '🧸' },
-  { id: 'other',       label: 'Other',               emoji: '📦' },
+  { id: 'electronics', label: 'Electronics',        emoji: '💻' },
+  { id: 'clothing',    label: 'Clothing',            emoji: '👗' },
+  { id: 'bags',        label: 'Bags & Wallets',      emoji: '💼' },
+  { id: 'jewelry',     label: 'Jewelry',             emoji: '✨' },
+  { id: 'keys',        label: 'Keys',                emoji: '🗝️' },
+  { id: 'documents',   label: 'Documents & IDs',     emoji: '🆔' },
+  { id: 'pets',        label: 'Pets',                emoji: '🐕' },
+  { id: 'books',       label: 'Books & Education',   emoji: '📖' },
+  { id: 'sports',      label: 'Sports & Gear',       emoji: '🏃' },
+  { id: 'glasses',     label: 'Glasses & Eyewear',   emoji: '🥽' },
+  { id: 'toys',        label: 'Toys & Games',        emoji: '🎮' },
+  { id: 'other',       label: 'Other',               emoji: '🎁' },
 ];
+
+export const DEFAULT_LF_SETTINGS = {
+  autoExpireEnabled:  false,
+  autoExpireDays:     60,
+  defaultContactName: '',
+  defaultContactEmail:'',
+  defaultSort:        'newest',
+  defaultTypeFilter:  'all',
+  defaultRewardOnly:  false,
+  itemsPerPage:       12,
+  privacyMode:        false,
+  highlightRewards:   false,
+  minRewardHighlight: 50,
+  // Card design style: 'default' | 'glassmorphism' | 'skeuomorphism' | 'claymorphism' | 'liquid-glass' | 'minimalism'
+  cardStyle:          'minimalism',
+};
 
 const genId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
 
@@ -90,9 +106,10 @@ function loadFromStorage() {
 function saveToStorage(state) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      items: state.items,
+      items:      state.items,
       alertEmail: state.alertEmail,
       alertPrefs: state.alertPrefs,
+      lfSettings: state.lfSettings,
     }));
   } catch { /* quota exceeded */ }
 }
@@ -103,6 +120,7 @@ export const useLostFoundStore = create((set, get) => ({
   items:      saved?.items      ?? MOCK_ITEMS,
   alertEmail: saved?.alertEmail ?? '',
   alertPrefs: saved?.alertPrefs ?? { category: '', location: '', status: '' },
+  lfSettings: saved?.lfSettings ? { ...DEFAULT_LF_SETTINGS, ...saved.lfSettings } : { ...DEFAULT_LF_SETTINGS },
 
   addItem: (item) => {
     const newItem = {
@@ -130,6 +148,14 @@ export const useLostFoundStore = create((set, get) => ({
   deleteItem: (id) => {
     set((s) => {
       const next = { ...s, items: s.items.filter(i => i.id !== id) };
+      saveToStorage(next);
+      return next;
+    });
+  },
+
+  setLfSettings: (updates) => {
+    set((s) => {
+      const next = { ...s, lfSettings: { ...s.lfSettings, ...updates } };
       saveToStorage(next);
       return next;
     });

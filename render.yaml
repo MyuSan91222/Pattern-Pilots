@@ -1,17 +1,42 @@
 services:
   - type: web
-    name: attendance-analyzer-api
+    name: pattern-pilots-api
     runtime: node
     plan: free
     rootDir: server
     buildCommand: npm install
     startCommand: node src/index.js
+    disk:
+      name: sqlite-data
+      mountPath: /var/data
+      sizeGB: 1
     envVars:
       - key: NODE_ENV
         value: production
+      - key: PORT
+        value: 3001
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_REFRESH_SECRET
         generateValue: true
+      - key: DB_PATH
+        value: /var/data/app.db
       - key: CLIENT_URL
-        sync: false   # Set this to your Vercel URL after deploying frontend
+        sync: false   # Set to your Vercel frontend URL e.g. https://pattern-pilots.vercel.app
+      - key: ADMIN_EMAILS
+        sync: false   # Comma-separated admin emails e.g. you@email.com
+      - key: ADMIN_DEFAULT_PASSWORD
+        sync: false   # Initial password for admin accounts
+      - key: REQUIRE_EMAIL_VERIFICATION
+        value: false
+      # Optional SMTP (for email features)
+      # - key: SMTP_HOST
+      #   sync: false
+      # - key: SMTP_PORT
+      #   sync: false
+      # - key: SMTP_USER
+      #   sync: false
+      # - key: SMTP_PASS
+      #   sync: false
+      # - key: FROM_EMAIL
+      #   sync: false

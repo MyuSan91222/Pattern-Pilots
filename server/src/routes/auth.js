@@ -5,6 +5,7 @@ import {
   generateAccessToken, generateRefreshToken, verifyRefreshToken,
   generateToken, sendVerificationEmail, sendResetEmail, verifyAccessToken
 } from '../utils/auth.js';
+import { requireAuth } from '../middleware/auth.js';
 
 const router = Router();
 const REQUIRE_EMAIL_VERIFICATION = ['true','1','yes'].includes(
@@ -79,8 +80,8 @@ router.post('/login', async (req, res) => {
     return res.status(403).json({ error: 'Please verify your email before logging in' });
   }
 
-  // Record login with attendance tracking
-  recordLogin(user.id, email);
+  // Record login with attendance tracking (non-fatal)
+  try { recordLogin(user.id, email); } catch (e) { console.error('[Login tracking]', e.message); }
 
   const accessToken = generateAccessToken(email, user.role);
   const refreshToken = generateRefreshToken(email);
@@ -140,11 +141,11 @@ router.post('/logout', (req, res) => {
     getDb().prepare('DELETE FROM refresh_tokens WHERE token = ?').run(token);
     const email = (() => { try { return verifyRefreshToken(token)?.email; } catch { return null; } })();
     if (email) {
-      const db = getDb();
-      const user = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
-      if (user) {
-        recordLogout(user.id, email);
-      }
+      try {
+        const db = getDb();
+        const user = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
+        if (user) recordLogout(user.id, email);
+      } catch (e) { console.error('[Logout tracking]', e.message); }
     }
   }
   res.clearCookie('refreshToken');
@@ -216,6 +217,204 @@ router.post('/reset', async (req, res) => {
   db.prepare('UPDATE users SET password_hash = ?, reset_token = NULL, reset_token_expires = NULL WHERE email = ?').run(hash, user.email);
   logActivity(user.email, 'password_reset');
   res.json({ message: 'Password reset successfully' });
+});
+
+// ── User Message Requests (User to Admin) ──────────────────────────────────────
+// POST /api/auth/contact-admin - User sends message request to admin
+router.post('/contact-admin', requireAuth, (req, res) => {
+  const db = getDb();
+  const { admin_email, message } = req.body;
+  const user_email = req.user.email;
+
+  if (!admin_email) {
+    return res.status(400).json({ error: 'Admin email required' });
+  }
+
+  try {
+    // Check if admin exists
+    const admin = db.prepare('SELECT id, email FROM users WHERE email = ? AND role = ?').get(admin_email, 'admin');
+    if (!admin) {
+      return res.status(404).json({ error: 'Admin not found' });
+    }
+
+    // Insert message request from user to admin with sender_type = 'user'
+    db.prepare(`
+      INSERT INTO admin_message_requests (admin_email, user_email, status, message, sender_type)
+      VALUES (?, ?, 'pending', ?, 'user')
+      ON CONFLICT(admin_email, user_email) DO UPDATE SET
+        status = 'pending',
+        message = ?,
+        sender_type = 'user',
+        created_at = datetime('now'),
+        responded_at = NULL
+    `).run(admin_email, user_email, message || null, message || null);
+
+    logActivity(user_email, 'contacted_admin', `Sent message to ${admin_email}`);
+    res.status(201).json({ success: true, message: 'Message request sent to admin' });
+  } catch (error) {
+    console.error('[Auth] Error sending contact request:', error);
+    res.status(500).json({ error: 'Failed to send message request' });
+  }
+});
+
+// GET /api/auth/admins - Get list of all admins (public endpoint)
+router.get('/admins', (req, res) => {
+  const db = getDb();
+  try {
+    const admins = db.prepare(`
+      SELECT email, created_at FROM users WHERE role = 'admin' ORDER BY created_at ASC
+    `).all();
+    
+    // Log for debugging
+    console.log('[Auth] Fetching admins, found:', admins.length);
+    
+    // Always return a successful response, even if empty
+    res.json({ 
+      admins: admins || [],
+      success: true
+    });
+  } catch (error) {
+    console.error('[Auth] Error fetching admins:', error);
+    // Return empty array instead of error
+    res.json({ 
+      admins: [],
+      success: false,
+      error: 'Failed to fetch admin list'
+    });
+  }
+});
+
+// GET /api/auth/message-requests - User views both their outgoing requests to admins AND incoming requests from admins
+router.get('/message-requests', requireAuth, (req, res) => {
+  const db = getDb();
+  const user_email = req.user.email;
+
+  try {
+    // Outgoing: user's requests to admins (sender_type = 'user')
+    const outgoing = db.prepare(`
+      SELECT id, admin_email as other_email, user_email, status, message, created_at, responded_at, 'outgoing' as type
+      FROM admin_message_requests
+      WHERE user_email = ? AND sender_type = 'user'
+      ORDER BY created_at DESC
+    `).all(user_email);
+
+    // Incoming: admin requests to this user (sender_type = 'admin')
+    const incoming = db.prepare(`
+      SELECT id, admin_email as other_email, user_email, status, message, created_at, responded_at, 'incoming' as type
+      FROM admin_message_requests
+      WHERE user_email = ? AND sender_type = 'admin'
+      ORDER BY created_at DESC
+    `).all(user_email);
+
+    // Combine both types
+    const requests = [...outgoing, ...incoming];
+    
+    res.json({ requests });
+  } catch (error) {
+    console.error('[Auth] Error fetching user requests:', error);
+    res.status(500).json({ error: 'Failed to fetch requests' });
+  }
+});
+
+// DELETE /api/auth/message-requests/:id - User cancels their message request
+router.delete('/message-requests/:id', requireAuth, (req, res) => {
+  const db = getDb();
+  const user_email = req.user.email;
+
+  try {
+    const request = db.prepare(`
+      SELECT * FROM admin_message_requests WHERE id = ? AND user_email = ?
+    `).get(req.params.id, user_email);
+
+    if (!request) {
+      return res.status(404).json({ error: 'Request not found' });
+    }
+
+    if (request.status !== 'pending') {
+      return res.status(400).json({ error: 'Can only cancel pending requests' });
+    }
+
+    db.prepare('DELETE FROM admin_message_requests WHERE id = ?').run(req.params.id);
+    logActivity(user_email, 'cancelled_request', `Cancelled request to ${request.admin_email}`);
+    res.json({ message: 'Request cancelled' });
+  } catch (error) {
+    console.error('[Auth] Error cancelling request:', error);
+    res.status(500).json({ error: 'Failed to cancel request' });
+  }
+});
+
+// PUT /api/auth/user-requests/:id/accept - Admin accepts user's message request
+router.put('/user-requests/:id/accept', requireAuth, (req, res) => {
+  const db = getDb();
+  const admin_email = req.user.email;
+
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Only admins can accept requests' });
+    }
+
+    const request = db.prepare(`
+      SELECT * FROM admin_message_requests WHERE id = ? AND admin_email = ?
+    `).get(req.params.id, admin_email);
+
+    if (!request) {
+      return res.status(404).json({ error: 'Request not found' });
+    }
+
+    if (request.status !== 'pending') {
+      return res.status(400).json({ error: 'Can only accept pending requests' });
+    }
+
+    // Update request status to accepted
+    db.prepare(`
+      UPDATE admin_message_requests
+      SET status = 'accepted', responded_at = datetime('now')
+      WHERE id = ?
+    `).run(req.params.id);
+
+    logActivity(admin_email, 'accepted_request', `Accepted request from ${request.user_email}`);
+    res.json({ success: true, message: 'Request accepted', user_email: request.user_email });
+  } catch (error) {
+    console.error('[Auth] Error accepting request:', error);
+    res.status(500).json({ error: 'Failed to accept request' });
+  }
+});
+
+// PUT /api/auth/user-requests/:id/reject - Admin rejects user's message request
+router.put('/user-requests/:id/reject', requireAuth, (req, res) => {
+  const db = getDb();
+  const admin_email = req.user.email;
+
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Only admins can reject requests' });
+    }
+
+    const request = db.prepare(`
+      SELECT * FROM admin_message_requests WHERE id = ? AND admin_email = ?
+    `).get(req.params.id, admin_email);
+
+    if (!request) {
+      return res.status(404).json({ error: 'Request not found' });
+    }
+
+    if (request.status !== 'pending') {
+      return res.status(400).json({ error: 'Can only reject pending requests' });
+    }
+
+    // Update request status to rejected
+    db.prepare(`
+      UPDATE admin_message_requests
+      SET status = 'rejected', responded_at = datetime('now')
+      WHERE id = ?
+    `).run(req.params.id);
+
+    logActivity(admin_email, 'rejected_request', `Rejected request from ${request.user_email}`);
+    res.json({ success: true, message: 'Request rejected' });
+  } catch (error) {
+    console.error('[Auth] Error rejecting request:', error);
+    res.status(500).json({ error: 'Failed to reject request' });
+  }
 });
 
 export default router;

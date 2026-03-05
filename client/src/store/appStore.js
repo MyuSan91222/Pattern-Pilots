@@ -26,7 +26,7 @@ function getSavedDefaults() {
     const saved = localStorage.getItem('aa_settings');
     if (saved) {
       const parsed = JSON.parse(saved);
-      if (parsed.defaultConfig) {
+      if (parsed && parsed.defaultConfig) {
         return { ...HARDCODED_DEFAULT, ...parsed.defaultConfig, timesLocked: false };
       }
     }
@@ -65,6 +65,7 @@ export const useAppStore = create((set) => ({
   fileNames: persisted?.fileNames || [],
   resultsRestoredAt: persisted?.savedAt || null,
   parsedFiles: [],
+  selectedFileNames: [],
 
   setConfig: (partial) => set((s) => ({ config: { ...s.config, ...partial } })),
   resetConfig: () => set({ config: getSavedDefaults() }),
@@ -88,6 +89,24 @@ export const useAppStore = create((set) => ({
   },
 
   setParsedFiles: (files) => set({ parsedFiles: files }),
+  
+  setSelectedFiles: (filenames) => set({ selectedFileNames: filenames }),
+  
+  toggleFileSelection: (filename) => set((s) => {
+    const selected = new Set(s.selectedFileNames);
+    if (selected.has(filename)) {
+      selected.delete(filename);
+    } else {
+      selected.add(filename);
+    }
+    return { selectedFileNames: Array.from(selected) };
+  }),
+  
+  selectAllFiles: () => set((s) => ({
+    selectedFileNames: s.parsedFiles.map(f => f.filename),
+  })),
+  
+  deselectAllFiles: () => set({ selectedFileNames: [] }),
   
   addParsedFiles: (newFiles) => set((s) => {
     const existing = new Set(s.parsedFiles.map(f => f.filename));

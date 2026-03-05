@@ -1,5 +1,6 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { useScrollFadeIn } from '../../hooks/useScrollFadeIn';
 import Navbar from './Navbar';
 
 export function ProtectedRoute({ adminOnly = false }) {
@@ -25,6 +26,7 @@ export function ProtectedRoute({ adminOnly = false }) {
 export default function AppLayout() {
   const { user, isLoading, isAuthenticated } = useAuth();
   const location = useLocation();
+  useScrollFadeIn(); // Enable scroll fade-in for all cards on this page
 
   if (isLoading) {
     return (
@@ -40,9 +42,9 @@ export default function AppLayout() {
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-ink-950">
+    <div className="h-screen flex flex-col overflow-hidden bg-ink-950 page-with-scroll-fade">
       <Navbar />
-      <div key={location.pathname} className="flex-1 overflow-y-auto animate-fade-in">
+      <div key={location.pathname} className="flex-1 overflow-y-auto animate-scale-in">
         <Outlet />
       </div>
     </div>

@@ -1,12 +1,15 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   Settings, Download, User, RotateCcw,
   Save, Mail, CheckCircle, AlertTriangle, ChevronRight, Palette, Crown, Clock, Calendar,
   Bookmark, Zap, Database, Trash2, Plus, Eye, EyeOff, RefreshCw,
-  HardDrive, FileJson, AlertCircle,
+  HardDrive, FileJson, AlertCircle, Table2, Tag, Sliders, Download as DownloadIcon,
+  Edit2, Check, X, Trash, LogIn, Package, Award, MapPin as MapPinIcon,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useSettingsStore, FACTORY_DEFAULTS, ACCENT_PRESETS, FONT_PRESETS, BUILTIN_PRESETS } from '../store/settingsStore';
+import { useLostFoundStore, DEFAULT_LF_SETTINGS, CATEGORIES } from '../store/lostFoundStore';
 import { useAppStore } from '../store/appStore';
 import { useAuth } from '../hooks/useAuth';
 import { authApi } from '../api';
@@ -36,14 +39,14 @@ function formatDate(isoStr) {
 // ── Section wrapper ───────────────────────────────────────────────────────────
 function Section({ icon: Icon, title, description, children }) {
   return (
-    <div className="card overflow-hidden">
-      <div className="p-5 border-b border-ink-800 flex items-start gap-3">
-        <div className="w-8 h-8 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+    <div className="card overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-lg animate-in fade-in zoom-in" style={{animationDuration: '500ms'}}>
+      <div className="p-5 border-b border-current border-opacity-10 flex items-start gap-3">
+        <div className="w-8 h-8 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center flex-shrink-0 mt-0.5 animate-in spin" style={{animationDuration: '700ms'}}>
           <Icon size={15} className="text-accent" />
         </div>
         <div>
-          <h2 className="text-sm font-semibold text-ink-100" style={{ fontFamily: 'Syne' }}>{title}</h2>
-          <p className="text-xs text-ink-500 mt-0.5">{description}</p>
+          <h2 className="text-sm font-semibold text-current" style={{ fontFamily: 'Syne' }}>{title}</h2>
+          <p className="text-xs text-current text-opacity-60 mt-0.5">{description}</p>
         </div>
       </div>
       <div className="p-5">{children}</div>
@@ -54,10 +57,10 @@ function Section({ icon: Icon, title, description, children }) {
 // ── Row inside a section ──────────────────────────────────────────────────────
 function SettingField({ label, hint, children }) {
   return (
-    <div className="flex items-center justify-between gap-4 py-3 border-b border-ink-800/60 last:border-0">
+    <div className="flex items-center justify-between gap-4 py-3 border-b border-current border-opacity-10 last:border-0">
       <div className="min-w-0">
-        <p className="text-sm text-ink-200">{label}</p>
-        {hint && <p className="text-xs text-ink-600 mt-0.5">{hint}</p>}
+        <p className="text-sm text-current">{label}</p>
+        {hint && <p className="text-xs text-current text-opacity-50 mt-0.5">{hint}</p>}
       </div>
       <div className="flex-shrink-0">{children}</div>
     </div>
@@ -103,7 +106,7 @@ function AppearanceSection() {
       description="Personalize the app's accent color and body font"
     >
       {/* Accent color */}
-      <p className="text-xs text-ink-500 uppercase tracking-wider mb-3" style={{ fontFamily: 'Syne' }}>
+      <p className="text-xs text-current text-opacity-60 uppercase tracking-wider mb-3" style={{ fontFamily: 'Syne' }}>
         Accent Color
       </p>
       <div className="flex gap-2.5 flex-wrap mb-6">
@@ -114,19 +117,20 @@ function AppearanceSection() {
               key={key}
               onClick={() => handleAccent(key)}
               title={preset.label}
-              className={`group relative flex flex-col items-center gap-1.5 transition-all`}
+              className={`group relative flex flex-col items-center gap-1.5 transition-all duration-300 hover:scale-125 animate-in fade-in`}
             >
               <span
-                className={`w-8 h-8 rounded-full block transition-all ring-offset-2 ring-offset-ink-900 ${
-                  active ? 'ring-2 scale-110' : 'hover:scale-105 opacity-70 hover:opacity-100'
+                className={`w-8 h-8 rounded-full block transition-all ring-offset-2 ${
+                  active ? 'ring-2 scale-110 animate-pulse' : 'hover:scale-105 opacity-70 hover:opacity-100'
                 }`}
                 style={{
                   backgroundColor: preset.hex,
                   ringColor: preset.hex,
-                  boxShadow: active ? `0 0 0 2px #fffffe, 0 0 0 4px ${preset.hex}` : undefined,
+                  ringOffsetColor: 'rgb(var(--bg-primary))',
+                  boxShadow: active ? `0 0 0 2px rgb(var(--bg-primary)), 0 0 0 4px ${preset.hex}` : undefined,
                 }}
               />
-              <span className={`text-[10px] ${active ? 'text-ink-200' : 'text-ink-600 group-hover:text-ink-400'} transition-colors`}>
+              <span className={`text-[10px] transition-colors ${active ? 'text-current font-semibold' : 'text-current text-opacity-60 group-hover:text-opacity-80'}`}>
                 {preset.label}
               </span>
             </button>
@@ -134,8 +138,28 @@ function AppearanceSection() {
         })}
       </div>
 
+      {/* Selected accent color display */}
+      <div className="mb-6 p-4 rounded-lg bg-white border-2 border-black shadow-lg">
+        <p className="text-xs font-bold text-black uppercase tracking-wider mb-3" style={{ fontFamily: 'Syne', letterSpacing: '0.08em' }}>
+          Selected Accent Color
+        </p>
+        <div className="flex items-center gap-4">
+          <span
+            className="w-12 h-12 rounded-full block flex-shrink-0 shadow-lg"
+            style={{
+              backgroundColor: ACCENT_PRESETS[accentPreset]?.hex,
+              boxShadow: `0 6px 16px ${ACCENT_PRESETS[accentPreset]?.hex}70, inset 0 1px 0 rgba(255,255,255,0.3)`,
+            }}
+          />
+          <div>
+            <p className="text-lg font-bold text-black">{ACCENT_PRESETS[accentPreset]?.label}</p>
+            <p className="text-xs font-mono text-black mt-0.5">{ACCENT_PRESETS[accentPreset]?.hex}</p>
+          </div>
+        </div>
+      </div>
+
       {/* Font */}
-      <p className="text-xs text-ink-500 uppercase tracking-wider mb-3" style={{ fontFamily: 'Syne' }}>
+      <p className="text-xs text-current text-opacity-60 uppercase tracking-wider mb-3" style={{ fontFamily: 'Syne' }}>
         Body Font
       </p>
       <div className="grid grid-cols-1 gap-2">
@@ -145,19 +169,19 @@ function AppearanceSection() {
             <button
               key={f.value}
               onClick={() => handleFont(f.value)}
-              className={`flex items-center justify-between px-4 py-3 rounded-lg border transition-all text-left ${
+              className={`flex items-center justify-between px-4 py-3 rounded-lg border transition-all duration-300 text-left ${
                 active
-                  ? 'border-accent bg-accent/10'
-                  : 'border-ink-700 hover:border-ink-500 hover:bg-ink-800/40'
+                  ? 'border-accent bg-accent/10 scale-105 shadow-lg shadow-accent/40'
+                  : 'border-current border-opacity-20 hover:border-accent hover:bg-accent/5 hover:scale-105 hover:shadow-lg hover:shadow-accent/30'
               }`}
             >
               <span
-                className={`text-sm ${active ? 'text-ink-100 font-semibold' : 'text-ink-400'}`}
+                className={`text-sm ${active ? 'text-current font-semibold' : 'text-current text-opacity-70'}`}
                 style={{ fontFamily: `'${f.value}', sans-serif` }}
               >
                 {f.label}
               </span>
-              <span className={`text-xs ${active ? 'text-accent' : 'text-ink-600'}`}>
+              <span className={`text-xs ${active ? 'text-accent' : 'text-current text-opacity-50'}`}>
                 {active ? '✓ Active' : f.google ? 'Google Fonts' : 'Built-in'}
               </span>
             </button>
@@ -200,41 +224,53 @@ function DefaultConfigSection() {
       description="These values load when you open the Dashboard or press Reset"
     >
       <SettingField label="Class Start" hint="Default class start time">
-        <input type="time" className="input text-sm w-32" value={local.classStart}
-          onChange={(e) => update('classStart', e.target.value)} />
+        <div className="relative group">
+          <input type="time" className="input text-sm w-32 focus:scale-105 focus:shadow-lg focus:shadow-accent/30 hover:border-accent/50 transition-all duration-300" value={local.classStart}
+            onChange={(e) => update('classStart', e.target.value)} />
+          <div className="absolute -bottom-6 left-0 text-xs text-accent opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">Class begins</div>
+        </div>
       </SettingField>
       <SettingField label="Class End" hint="Default class end time">
-        <input type="time" className="input text-sm w-32" value={local.classEnd}
-          onChange={(e) => update('classEnd', e.target.value)} />
+        <div className="relative group">
+          <input type="time" className="input text-sm w-32 focus:scale-105 focus:shadow-lg focus:shadow-accent/30 hover:border-accent/50 transition-all duration-300" value={local.classEnd}
+            onChange={(e) => update('classEnd', e.target.value)} />
+          <div className="absolute -bottom-6 left-0 text-xs text-accent opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">Class ends</div>
+        </div>
       </SettingField>
       <SettingField label="Late After (min)" hint="Minutes after class start to be considered late">
-        <input type="number" className="input text-sm w-24" min={0} max={60} value={local.lateThreshold}
-          onChange={(e) => update('lateThreshold', +e.target.value)} />
+        <div className="relative group">
+          <input type="number" className="input text-sm w-24 focus:scale-105 focus:shadow-lg focus:shadow-accent/30 hover:border-accent/50 transition-all duration-300" min={0} max={60} value={local.lateThreshold}
+            onChange={(e) => update('lateThreshold', +e.target.value)} />
+          <div className="absolute -bottom-6 left-0 text-xs text-accent opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">Late threshold</div>
+        </div>
       </SettingField>
       <SettingField label="Absent After (min)" hint="Minutes after class start to be marked absent">
-        <input type="number" className="input text-sm w-24" min={0} max={240} value={local.absentThreshold}
-          onChange={(e) => update('absentThreshold', +e.target.value)} />
+        <div className="relative group">
+          <input type="number" className="input text-sm w-24 focus:scale-105 focus:shadow-lg focus:shadow-accent/30 hover:border-accent/50 transition-all duration-300" min={0} max={240} value={local.absentThreshold}
+            onChange={(e) => update('absentThreshold', +e.target.value)} />
+          <div className="absolute -bottom-6 left-0 text-xs text-accent opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">Absent threshold</div>
+        </div>
       </SettingField>
       <SettingField label="Max Score" hint="Full marks available per student">
-        <input type="number" className="input text-sm w-24" min={0} value={local.maxScore}
+        <input type="number" className="input text-sm w-24 focus:scale-105 focus:shadow-lg focus:shadow-accent/30 transition-all duration-300" min={0} value={local.maxScore}
           onChange={(e) => update('maxScore', +e.target.value)} />
       </SettingField>
       <SettingField label="Late Penalty" hint="Points deducted per late attendance">
-        <input type="number" className="input text-sm w-24" min={0} step={0.5} value={local.latePenalty}
+        <input type="number" className="input text-sm w-24 focus:scale-105 focus:shadow-lg focus:shadow-accent/30 transition-all duration-300" min={0} step={0.5} value={local.latePenalty}
           onChange={(e) => update('latePenalty', +e.target.value)} />
       </SettingField>
       <SettingField label="Absent Penalty" hint="Points deducted per absence">
-        <input type="number" className="input text-sm w-24" min={0} step={0.5} value={local.absentPenalty}
+        <input type="number" className="input text-sm w-24 focus:scale-105 focus:shadow-lg focus:shadow-accent/30 transition-all duration-300" min={0} step={0.5} value={local.absentPenalty}
           onChange={(e) => update('absentPenalty', +e.target.value)} />
       </SettingField>
 
       <div className="flex items-center gap-3 pt-4">
         <button onClick={handleSave} disabled={!dirty}
-          className="btn-primary flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
+          className="btn-primary flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-accent/40">
           <Save size={13} />Save Defaults
         </button>
         <button onClick={handleReset}
-          className="text-xs text-ink-500 border border-ink-700 rounded px-3 py-1.5 flex items-center gap-1.5 hover:border-ink-500 hover:text-ink-300 transition-all">
+          className="text-xs text-ink-500 border border-ink-700 rounded px-3 py-1.5 flex items-center gap-1.5 hover:border-accent hover:text-accent hover:scale-105 hover:shadow-lg hover:shadow-accent/30 transition-all duration-300">
           <RotateCcw size={12} />Factory Reset
         </button>
       </div>
@@ -342,7 +378,7 @@ function AccountSection() {
       <div className="pt-4">
         <p className="text-xs text-ink-500 mb-3">Password & Security</p>
         <button onClick={handlePasswordReset} disabled={sending || sent}
-          className="flex items-center gap-2 text-sm text-ink-300 border border-ink-700 rounded-lg px-4 py-2 hover:border-accent hover:text-accent hover:bg-accent/5 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+          className="flex items-center gap-2 text-sm text-ink-300 border border-ink-700 rounded-lg px-4 py-2 hover:border-accent hover:text-accent hover:bg-accent/5 hover:scale-105 hover:shadow-lg hover:shadow-accent/30 active:scale-95 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed">
           {sent ? <CheckCircle size={14} className="text-emerald-400" /> : <Mail size={14} />}
           {sent ? 'Reset email sent' : sending ? 'Sending…' : 'Send Password Reset Email'}
         </button>
@@ -395,47 +431,57 @@ function PresetsSection() {
       description="Save and load named scoring configurations for different class types">
 
       <div className="space-y-2 mb-5">
-        {allPresets.map((preset) => (
-          <div key={preset.id} className="flex items-center gap-2 p-3 rounded-lg border border-ink-700 bg-ink-900/40">
+        {allPresets.map((preset, idx) => (
+          <div key={preset.id} className={`flex items-center justify-between p-3 rounded-lg border transition-all duration-300 group hover:scale-101 animate-in fade-in slide-in-from-left ${
+            idx % 2 === 0 ? 'bg-ink-900/30 border-ink-700/40' : 'bg-ink-800/20 border-ink-700/30'
+          } hover:border-accent/60 hover:shadow-lg hover:shadow-accent/25`} style={{ animationDelay: `${idx * 50}ms` }}>
+            {/* Left: Info */}
             <div className="flex-1 min-w-0">
               {renamingId === preset.id ? (
-                <input autoFocus className="input text-sm py-1 w-full"
+                <input autoFocus className="input text-sm py-1 w-full focus:scale-105 focus:shadow-lg focus:shadow-accent/30 transition-all duration-300"
                   value={renameVal}
                   onChange={e => setRenameVal(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') handleRename(preset.id); if (e.key === 'Escape') setRenamingId(null); }}
                 />
               ) : (
-                <>
-                  <p className="text-sm font-medium text-ink-200">{preset.name}
-                    {preset.isBuiltIn && <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-ink-800 text-ink-500">Built-in</span>}
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-ink-100">{preset.name}</p>
+                    {preset.isBuiltIn && <span className="text-[9px] px-1.5 py-0.5 rounded bg-accent/15 text-accent border border-accent/40 font-semibold">Built-in</span>}
+                  </div>
+                  <p className="text-xs text-ink-600 space-x-2">
+                    <span className="inline-block"><strong className="text-ink-400">Time:</strong> {preset.classStart}–{preset.classEnd}</span>
+                    <span>·</span>
+                    <span className="inline-block"><strong className="text-ink-400">Late:</strong> <span className="text-amber-400 font-medium">+{preset.lateThreshold}m</span></span>
+                    <span>·</span>
+                    <span className="inline-block"><strong className="text-ink-400">Max:</strong> <span className="text-blue-400 font-medium">{preset.maxScore}pts</span></span>
                   </p>
-                  <p className="text-xs text-ink-600 mt-0.5">
-                    {preset.classStart}–{preset.classEnd} · Late +{preset.lateThreshold}m · Max {preset.maxScore} pts · −{preset.latePenalty}/{preset.absentPenalty}
-                  </p>
-                </>
+                </div>
               )}
             </div>
-            <div className="flex items-center gap-1 flex-shrink-0">
-              <button onClick={() => handleLoad(preset)}
-                className="text-xs px-2.5 py-1 rounded border border-ink-700 text-ink-400 hover:border-accent hover:text-accent transition-all">
-                Load
+
+            {/* Right: Buttons */}
+            <div className="flex items-center gap-1.5 flex-shrink-0 ml-3 opacity-80 group-hover:opacity-100 transition-opacity duration-300">
+              <button onClick={() => handleLoad(preset)} title="Load preset"
+                className="p-1.5 rounded-lg bg-blue-500/15 text-blue-400 border border-blue-500/30 hover:bg-blue-500/25 hover:border-blue-500/60 hover:scale-110 hover:shadow-lg hover:shadow-blue-500/30 transition-all duration-300 active:scale-95 animate-in fade-in">
+                <LogIn size={14} />
               </button>
               {!preset.isBuiltIn && renamingId !== preset.id && (
-                <button onClick={() => { setRenamingId(preset.id); setRenameVal(preset.name); }}
-                  className="text-xs px-2 py-1 rounded border border-ink-700 text-ink-500 hover:border-ink-500 hover:text-ink-300 transition-all">
-                  Rename
+                <button onClick={() => { setRenamingId(preset.id); setRenameVal(preset.name); }} title="Rename preset"
+                  className="p-1.5 rounded-lg border border-ink-600/50 text-ink-400 hover:text-ink-200 hover:border-ink-500 hover:bg-ink-800/40 hover:scale-110 hover:shadow-lg hover:shadow-ink-500/20 transition-all duration-300 active:scale-95 animate-in fade-in">
+                  <Edit2 size={14} />
                 </button>
               )}
               {renamingId === preset.id && (
-                <button onClick={() => handleRename(preset.id)}
-                  className="text-xs px-2.5 py-1 rounded border border-accent text-accent hover:bg-accent/10 transition-all">
-                  Save
+                <button onClick={() => handleRename(preset.id)} title="Save name"
+                  className="p-1.5 rounded-lg bg-accent/15 text-accent border border-accent/40 hover:bg-accent/25 hover:border-accent/60 hover:scale-110 hover:shadow-lg hover:shadow-accent/40 transition-all duration-300 active:scale-95 animate-in fade-in">
+                  <Check size={14} />
                 </button>
               )}
               {!preset.isBuiltIn && (
-                <button onClick={() => { deletePreset(preset.id); toast.success('Preset deleted'); }}
-                  className="p-1.5 rounded text-ink-600 hover:text-danger hover:bg-danger/10 transition-all">
-                  <Trash2 size={13} />
+                <button onClick={() => { deletePreset(preset.id); toast.success('Preset deleted'); }} title="Delete preset"
+                  className="p-1.5 rounded-lg text-red-400/70 border border-red-500/20 hover:text-red-400 hover:border-red-500/40 hover:bg-red-500/10 hover:scale-110 hover:shadow-lg hover:shadow-red-500/30 transition-all duration-300 active:scale-95 animate-in fade-in">
+                  <Trash size={14} />
                 </button>
               )}
             </div>
@@ -446,11 +492,11 @@ function PresetsSection() {
       <div className="border-t border-ink-800 pt-4">
         <p className="text-xs text-ink-500 mb-2">Save current Dashboard config as preset</p>
         <div className="flex gap-2">
-          <input className="input text-sm flex-1" placeholder="Preset name…"
+          <input className="input text-sm flex-1 focus:scale-105 focus:shadow-lg focus:shadow-accent/30 transition-all duration-300" placeholder="Preset name…"
             value={newName} onChange={e => setNewName(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleSave()} />
           <button onClick={handleSave} disabled={saving || !newName.trim()}
-            className="btn-primary flex items-center gap-1.5 px-3 disabled:opacity-40">
+            className="btn-primary flex items-center gap-1.5 px-3 disabled:opacity-40 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-accent/40">
             <Plus size={13} />Save
           </button>
         </div>
@@ -481,22 +527,27 @@ function TableSection() {
       {/* Column visibility */}
       <Section icon={Table2} title="Column Visibility"
         description="Toggle which columns appear in the student results table">
-        <div className="grid grid-cols-2 gap-1.5 mb-4">
+        <div className="grid grid-cols-2 gap-2 mb-4">
           {Object.entries(COLUMN_LABELS).map(([id, label]) => {
             const visible = visibleColumns[id] !== false;
             return (
               <button key={id} onClick={() => toggleColumn(id)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-all text-left ${
-                  visible ? 'border-accent bg-accent/10 text-ink-100' : 'border-ink-700 text-ink-500 hover:border-ink-500'
+                className={`relative flex items-center gap-2 px-4 py-2.5 rounded-full font-medium text-sm transition-all duration-300 overflow-hidden group ${
+                  visible 
+                    ? 'bg-accent text-ink-950 shadow-lg shadow-accent/50 hover:shadow-xl hover:shadow-accent/60 hover:scale-110 scale-100' 
+                    : 'bg-ink-800/50 text-ink-400 border border-ink-700/50 hover:bg-ink-800 hover:border-accent/40 hover:text-accent hover:scale-105'
                 }`}>
-                {visible ? <Eye size={13} className="text-accent flex-shrink-0" /> : <EyeOff size={13} className="flex-shrink-0" />}
-                {label}
+                <span className={`transition-transform duration-300 ${visible ? 'scale-110' : 'scale-100'}`}>
+                  {visible ? <Eye size={14} className="flex-shrink-0" /> : <EyeOff size={14} className="flex-shrink-0" />}
+                </span>
+                <span className="truncate">{label}</span>
+                {visible && <span className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-10 bg-white transition-opacity duration-300" />}
               </button>
             );
           })}
         </div>
         <button onClick={() => { resetColumns(); toast.success('Columns reset'); }}
-          className="text-xs text-ink-500 flex items-center gap-1.5 hover:text-ink-300 transition-colors">
+          className="text-xs text-ink-500 flex items-center gap-1.5 hover:text-accent hover:scale-105 transition-all duration-300">
           <RotateCcw size={11} />Reset to defaults
         </button>
       </Section>
@@ -512,19 +563,19 @@ function TableSection() {
               <span className="text-sm text-ink-300 w-4">{t.grade}</span>
               <div className="flex items-center gap-1.5 flex-1">
                 <input type="number" min={0} max={100}
-                  className="input text-sm w-20 py-1.5"
+                  className="input text-sm w-20 py-1.5 focus:scale-105 focus:shadow-lg focus:shadow-accent/30 transition-all duration-300"
                   value={t.min}
                   onChange={e => updateGradeThreshold(t.grade, e.target.value)} />
                 <span className="text-xs text-ink-500">% and above</span>
               </div>
               <input type="color" value={t.color}
                 onChange={e => updateGradeColor(t.grade, e.target.value)}
-                className="w-8 h-8 rounded cursor-pointer border border-ink-700 bg-ink-900 p-0.5" />
+                className="w-8 h-8 rounded cursor-pointer border border-ink-700 bg-ink-900 p-0.5 hover:scale-110 hover:shadow-lg hover:shadow-accent/30 transition-all duration-300" />
             </div>
           ))}
         </div>
         <button onClick={() => { resetGradeThresholds(); toast.success('Grade thresholds reset'); }}
-          className="text-xs text-ink-500 flex items-center gap-1.5 hover:text-ink-300 transition-colors">
+          className="text-xs text-ink-500 flex items-center gap-1.5 hover:text-accent hover:scale-105 transition-all duration-300">
           <RotateCcw size={11} />Reset to defaults
         </button>
       </Section>
@@ -537,7 +588,7 @@ function TableSection() {
             <input type="range" min={50} max={100} step={5}
               value={highScoreThreshold}
               onChange={e => { setHighScoreThreshold(+e.target.value); }}
-              className="w-28 accent-[#1565c0]" />
+              className="w-28 accent-[#1565c0] hover:scale-105 transition-all duration-300 cursor-pointer" />
             <span className="text-sm font-mono text-ink-300 w-10 text-right">{highScoreThreshold}%</span>
           </div>
         </SettingField>
@@ -546,7 +597,7 @@ function TableSection() {
             <input type="range" min={30} max={90} step={5}
               value={midScoreThreshold}
               onChange={e => { setMidScoreThreshold(+e.target.value); }}
-              className="w-28 accent-[#7c4900]" />
+              className="w-28 accent-[#7c4900] hover:scale-105 transition-all duration-300 cursor-pointer" />
             <span className="text-sm font-mono text-ink-300 w-10 text-right">{midScoreThreshold}%</span>
           </div>
         </SettingField>
@@ -555,7 +606,7 @@ function TableSection() {
             <input type="range" min={30} max={95} step={5}
               value={atRiskThreshold}
               onChange={e => { setAtRiskThreshold(+e.target.value); }}
-              className="w-28" />
+              className="w-28 hover:scale-105 transition-all duration-300 cursor-pointer" />
             <span className="text-sm font-mono text-ink-300 w-10 text-right">{atRiskThreshold}%</span>
           </div>
         </SettingField>
@@ -609,7 +660,7 @@ function AdvancedSection() {
         hint="Save last analysis results to browser storage so they reappear after page refresh"
       />
       <SettingField label="Default Export Format" hint="Format pre-selected when you click export on the Dashboard">
-        <select className="input text-sm w-24" value={exportFormat}
+        <select className="input text-sm w-24 focus:scale-105 focus:shadow-lg focus:shadow-accent/30 transition-all duration-300 cursor-pointer" value={exportFormat}
           onChange={(e) => { setExportFormat(e.target.value); toast.success(`Export format: ${e.target.value.toUpperCase()}`); }}>
           <option value="csv">CSV</option>
           <option value="txt">TXT</option>
@@ -617,6 +668,347 @@ function AdvancedSection() {
         </select>
       </SettingField>
     </Section>
+  );
+}
+
+// ── Card Design Style definitions ─────────────────────────────────────────────
+const CARD_DESIGN_STYLES = [
+  {
+    id:      'default',
+    label:   'Default',
+    tagline: 'Classic dark card',
+    accent:  '#374151',
+    preview: {
+      container: { background: '#0d1117', border: '1px solid #374151', borderRadius: '10px' },
+      imgBar:    { background: 'linear-gradient(135deg, #1f2937 0%, #111827 100%)' },
+      textColor: 'rgba(156, 163, 175, 0.9)',
+    },
+  },
+  {
+    id:      'glassmorphism',
+    label:   'Glassmorphism',
+    tagline: 'Frosted glass · Sky blue',
+    accent:  '#60a5fa',
+    preview: {
+      container: {
+        background: 'rgba(96, 165, 250, 0.10)',
+        border: '1px solid rgba(96, 165, 250, 0.30)',
+        borderRadius: '14px',
+        backdropFilter: 'blur(12px)',
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.10)',
+      },
+      imgBar:    { background: 'linear-gradient(135deg, rgba(96,165,250,0.30) 0%, rgba(59,130,246,0.15) 100%)' },
+      textColor: 'rgba(147, 197, 253, 0.9)',
+    },
+  },
+  {
+    id:      'skeuomorphism',
+    label:   'Skeuomorphism',
+    tagline: 'Warm leather · Rich depth',
+    accent:  '#b45309',
+    preview: {
+      container: {
+        background: 'linear-gradient(160deg, #1f1a0f 0%, #261e0e 60%, #1a1408 100%)',
+        border: '1px solid #5a4520',
+        borderRadius: '6px',
+        boxShadow: '0 4px 10px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,200,80,0.14)',
+      },
+      imgBar:    { background: 'linear-gradient(135deg, #3d2b0e 0%, #2a1e08 100%)' },
+      textColor: 'rgba(205, 160, 80, 0.85)',
+    },
+  },
+  {
+    id:      'claymorphism',
+    label:   'Claymorphism',
+    tagline: 'Soft clay · Lavender-purple',
+    accent:  '#a78bfa',
+    preview: {
+      container: {
+        background: '#1e1648',
+        border: '2px solid rgba(147,112,219,0.40)',
+        borderRadius: '18px',
+        boxShadow: '6px 6px 0px rgba(72,44,138,0.65)',
+      },
+      imgBar:    { background: 'linear-gradient(135deg, #2d1f6e 0%, #1e1448 100%)' },
+      textColor: 'rgba(196, 181, 253, 0.9)',
+    },
+  },
+  {
+    id:      'liquid-glass',
+    label:   'Liquid Glass',
+    tagline: 'Iridescent · Purple-cyan',
+    accent:  '#06b6d4',
+    preview: {
+      container: {
+        background: 'linear-gradient(135deg, rgba(124,58,237,0.22) 0%, rgba(6,182,212,0.14) 50%, rgba(16,185,129,0.18) 100%)',
+        border: '1px solid rgba(255,255,255,0.16)',
+        borderRadius: '14px',
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.20), 0 4px 20px rgba(124,58,237,0.22)',
+      },
+      imgBar:    { background: 'linear-gradient(135deg, rgba(124,58,237,0.35) 0%, rgba(6,182,212,0.25) 100%)' },
+      textColor: 'rgba(167, 243, 208, 0.9)',
+    },
+  },
+  {
+    id:      'minimalism',
+    label:   'Minimalism',
+    tagline: 'Clean flat · No noise',
+    accent:  '#6b7280',
+    preview: {
+      container: {
+        background: 'transparent',
+        border: '1px solid rgba(255,255,255,0.12)',
+        borderRadius: '4px',
+        boxShadow: 'none',
+      },
+      imgBar:    { background: 'rgba(255,255,255,0.05)' },
+      textColor: 'rgba(209, 213, 219, 0.6)',
+    },
+  },
+];
+
+// ── Lost & Found Settings ─────────────────────────────────────────────────────
+function LostFoundSection() {
+  const { lfSettings, setLfSettings } = useLostFoundStore();
+
+  const Toggle = ({ value, onChange, label, hint }) => (
+    <SettingField label={label} hint={hint}>
+      <button
+        onClick={() => onChange(!value)}
+        className={`relative inline-flex h-7 w-14 items-center rounded-full transition-all duration-200 ease-out focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-ink-900 ${
+          value ? 'bg-accent shadow-lg shadow-accent/30' : 'bg-ink-700 hover:bg-ink-600'
+        }`}
+        title={value ? 'Enabled' : 'Disabled'}
+      >
+        <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-all duration-200 ${value ? 'translate-x-7' : 'translate-x-1'}`} />
+      </button>
+    </SettingField>
+  );
+
+  const activeCardStyle = lfSettings.cardStyle ?? 'default';
+
+  return (
+    <div className="space-y-5">
+
+      {/* ── Card Design Style ── */}
+      <Section
+        icon={Palette}
+        title="Card Design Style"
+        description="Choose the visual style applied to every Lost & Found item card"
+      >
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {CARD_DESIGN_STYLES.map((style) => {
+            const active = activeCardStyle === style.id;
+            const p = style.preview;
+            return (
+              <button
+                key={style.id}
+                onClick={() => { setLfSettings({ cardStyle: style.id }); toast.success(`Card style: ${style.label}`); }}
+                className={`relative flex flex-col gap-2.5 p-3 rounded-xl border transition-all duration-300 text-left group ${
+                  active
+                    ? 'border-accent bg-accent/10 shadow-lg shadow-accent/20 scale-105'
+                    : 'border-ink-700 hover:border-ink-500 hover:scale-105 hover:shadow-lg hover:shadow-black/30'
+                }`}
+              >
+                {/* Mini card preview */}
+                <div className="w-full h-20 rounded-lg overflow-hidden flex-shrink-0 relative" style={p.container}>
+                  {/* Fake image bar */}
+                  <div className="w-full h-11" style={p.imgBar} />
+                  {/* Fake text lines */}
+                  <div className="px-2 pt-1.5 space-y-1">
+                    <div className="h-1.5 rounded-full w-3/4" style={{ background: p.textColor }} />
+                    <div className="h-1 rounded-full w-1/2" style={{ background: p.textColor, opacity: 0.5 }} />
+                  </div>
+                  {/* Accent dot */}
+                  <div
+                    className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full"
+                    style={{ background: style.accent, boxShadow: `0 0 6px ${style.accent}` }}
+                  />
+                </div>
+                {/* Labels */}
+                <div>
+                  <p className="text-[11px] font-bold text-ink-100 uppercase tracking-wider leading-tight">{style.label}</p>
+                  <p className="text-[9px] text-ink-500 mt-0.5 leading-tight">{style.tagline}</p>
+                </div>
+                {/* Active badge */}
+                {active && (
+                  <span className="absolute top-2 right-2 text-[9px] bg-accent text-white px-1.5 py-0.5 rounded-full font-bold leading-none">
+                    ON
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-xs text-ink-600 mt-3">Style applies instantly to the Browse grid on the Lost & Found page.</p>
+      </Section>
+
+      {/* ── Feature 1: Auto-Expire Listings ── */}
+      <Section
+        icon={Clock}
+        title="Auto-Expire Listings"
+        description="Automatically badge listings as 'Expired' after a configurable number of days"
+      >
+        <Toggle
+          value={lfSettings.autoExpireEnabled}
+          onChange={(v) => { setLfSettings({ autoExpireEnabled: v }); toast.success(v ? 'Auto-expire enabled' : 'Auto-expire disabled'); }}
+          label="Enable Auto-Expire"
+          hint="Listings older than the threshold show an orange 'Expired' badge instead of Lost/Found"
+        />
+        <SettingField label="Expire After (days)" hint="Listings created more than this many days ago are considered expired">
+          <div className="flex items-center gap-3">
+            <input
+              type="range" min={7} max={180} step={7}
+              value={lfSettings.autoExpireDays}
+              disabled={!lfSettings.autoExpireEnabled}
+              onChange={e => setLfSettings({ autoExpireDays: +e.target.value })}
+              className="w-28 cursor-pointer disabled:opacity-40 transition-all duration-300"
+            />
+            <span className="text-sm font-mono text-ink-300 w-16 text-right">{lfSettings.autoExpireDays} days</span>
+          </div>
+        </SettingField>
+        {lfSettings.autoExpireEnabled && (
+          <div className="mt-2 p-3 rounded-lg bg-orange-500/5 border border-orange-500/20">
+            <p className="text-xs text-orange-400 font-medium">Auto-expire active</p>
+            <p className="text-xs text-ink-500 mt-0.5">Listings older than {lfSettings.autoExpireDays} days will display an "Expired" badge on the browse page.</p>
+          </div>
+        )}
+      </Section>
+
+      {/* ── Feature 2: Default Contact Info ── */}
+      <Section
+        icon={User}
+        title="Default Contact Info"
+        description="Pre-fill your name and email in the Report Item form so you don't have to retype them"
+      >
+        <SettingField label="Default Name" hint="Auto-filled in the 'Your Name' field when not signed in">
+          <input
+            type="text"
+            className="input text-sm w-44 focus:scale-105 focus:shadow-lg focus:shadow-accent/30 transition-all duration-300"
+            placeholder="Your full name…"
+            value={lfSettings.defaultContactName}
+            onChange={e => setLfSettings({ defaultContactName: e.target.value })}
+          />
+        </SettingField>
+        <SettingField label="Default Email" hint="Auto-filled in the 'Your Email' field when not signed in">
+          <input
+            type="email"
+            className="input text-sm w-52 focus:scale-105 focus:shadow-lg focus:shadow-accent/30 transition-all duration-300"
+            placeholder="you@example.com"
+            value={lfSettings.defaultContactEmail}
+            onChange={e => setLfSettings({ defaultContactEmail: e.target.value })}
+          />
+        </SettingField>
+        <div className="pt-1">
+          <p className="text-xs text-ink-600">When you're signed in, your account email takes precedence over these defaults.</p>
+        </div>
+      </Section>
+
+      {/* ── Feature 3: Display Preferences ── */}
+      <Section
+        icon={Sliders}
+        title="Display Preferences"
+        description="Configure default sort order, type filter, and pagination for the Browse page"
+      >
+        <SettingField label="Default Sort Order" hint="Sort applied when first opening Browse">
+          <select
+            className="input text-sm w-44 focus:scale-105 transition-all duration-300"
+            value={lfSettings.defaultSort}
+            onChange={e => { setLfSettings({ defaultSort: e.target.value }); toast.success('Default sort updated'); }}
+          >
+            <option value="newest">Most Recent</option>
+            <option value="oldest">Oldest First</option>
+            <option value="reward">Highest Reward</option>
+          </select>
+        </SettingField>
+        <SettingField label="Default Type Filter" hint="Which listing type to show by default">
+          <select
+            className="input text-sm w-44 focus:scale-105 transition-all duration-300"
+            value={lfSettings.defaultTypeFilter}
+            onChange={e => { setLfSettings({ defaultTypeFilter: e.target.value }); toast.success('Default filter updated'); }}
+          >
+            <option value="all">All Items</option>
+            <option value="lost">Lost Only</option>
+            <option value="found">Found Only</option>
+          </select>
+        </SettingField>
+        <SettingField label="Items Per Page" hint="Number of listings loaded per page (0 = show all)">
+          <select
+            className="input text-sm w-32 focus:scale-105 transition-all duration-300"
+            value={lfSettings.itemsPerPage}
+            onChange={e => { setLfSettings({ itemsPerPage: +e.target.value }); toast.success('Items per page updated'); }}
+          >
+            <option value={6}>6 per page</option>
+            <option value={12}>12 per page</option>
+            <option value={24}>24 per page</option>
+            <option value={48}>48 per page</option>
+            <option value={0}>Show all</option>
+          </select>
+        </SettingField>
+        <Toggle
+          value={lfSettings.defaultRewardOnly}
+          onChange={(v) => { setLfSettings({ defaultRewardOnly: v }); toast.success(v ? 'Browse defaults to reward items' : 'Browse shows all items'); }}
+          label="Default: Reward Items Only"
+          hint="Browse page pre-filters to only show listings that offer a reward"
+        />
+      </Section>
+
+      {/* ── Feature 4: Privacy Mode ── */}
+      <Section
+        icon={EyeOff}
+        title="Privacy Mode"
+        description="Mask contact names and email addresses in listings to protect personal details"
+      >
+        <Toggle
+          value={lfSettings.privacyMode}
+          onChange={(v) => { setLfSettings({ privacyMode: v }); toast.success(v ? 'Privacy mode ON — contact info masked' : 'Privacy mode OFF'); }}
+          label="Enable Privacy Mode"
+          hint="Contact names show only first name + initial; emails are partially hidden with a reveal toggle"
+        />
+        {lfSettings.privacyMode && (
+          <div className="mt-3 p-3 rounded-lg bg-accent/5 border border-accent/20">
+            <p className="text-xs text-accent font-medium mb-1">Privacy mode is active</p>
+            <ul className="text-xs text-ink-500 space-y-0.5">
+              <li>• Contact names shown as "John D." instead of "John Doe"</li>
+              <li>• Emails shown as "j****@example.com" with a click-to-reveal button</li>
+            </ul>
+          </div>
+        )}
+      </Section>
+
+      {/* ── Feature 5: Reward Highlights ── */}
+      <Section
+        icon={Award}
+        title="Reward Highlights"
+        description="Visually distinguish listings that offer a reward above your personal threshold"
+      >
+        <Toggle
+          value={lfSettings.highlightRewards}
+          onChange={(v) => { setLfSettings({ highlightRewards: v }); toast.success(v ? 'Reward highlights ON' : 'Reward highlights OFF'); }}
+          label="Highlight High-Reward Listings"
+          hint="Listings at or above the threshold get a golden glowing border on the browse grid"
+        />
+        <SettingField label="Minimum Reward ($)" hint="Listings offering this amount or more are highlighted">
+          <div className="flex items-center gap-2">
+            <input
+              type="number" min={0} max={10000} step={10}
+              className="input text-sm w-24 focus:scale-105 focus:shadow-lg focus:shadow-accent/30 transition-all duration-300 disabled:opacity-40"
+              disabled={!lfSettings.highlightRewards}
+              value={lfSettings.minRewardHighlight}
+              onChange={e => setLfSettings({ minRewardHighlight: Math.max(0, +e.target.value) })}
+            />
+            <span className="text-xs text-ink-500">or more</span>
+          </div>
+        </SettingField>
+        {lfSettings.highlightRewards && (
+          <div className="mt-3 p-3 rounded-lg bg-amber-500/5 border border-amber-500/20">
+            <p className="text-xs text-amber-400 font-medium">Reward highlighting active</p>
+            <p className="text-xs text-ink-500 mt-0.5">Items offering ${lfSettings.minRewardHighlight}+ display with a golden glow border on the browse page.</p>
+          </div>
+        )}
+      </Section>
+
+    </div>
   );
 }
 
@@ -686,11 +1078,11 @@ function DataSection() {
         description="Export your settings as JSON or import a previously saved backup">
         <div className="flex gap-3">
           <button onClick={handleExportSettings}
-            className="flex items-center gap-2 text-sm border border-ink-700 rounded-lg px-4 py-2 text-ink-300 hover:border-accent hover:text-accent hover:bg-accent/5 transition-all">
+            className="flex items-center gap-2 text-sm border border-ink-700 rounded-lg px-4 py-2 text-ink-300 hover:border-accent hover:text-accent hover:bg-accent/5 hover:scale-105 hover:shadow-lg hover:shadow-accent/30 transition-all duration-300">
             <Download size={14} />Export JSON
           </button>
           <button onClick={() => importRef.current?.click()}
-            className="flex items-center gap-2 text-sm border border-ink-700 rounded-lg px-4 py-2 text-ink-300 hover:border-accent hover:text-accent hover:bg-accent/5 transition-all">
+            className="flex items-center gap-2 text-sm border border-ink-700 rounded-lg px-4 py-2 text-ink-300 hover:border-accent hover:text-accent hover:bg-accent/5 hover:scale-105 hover:shadow-lg hover:shadow-accent/30 transition-all duration-300">
             <FileJson size={14} />Import JSON
           </button>
           <input ref={importRef} type="file" accept=".json" className="hidden" onChange={handleImportSettings} />
@@ -712,16 +1104,16 @@ function DataSection() {
             {confirmClear ? (
               <div className="flex gap-2 flex-shrink-0">
                 <button onClick={() => { clearResults(); setConfirmClear(false); toast.success('Results cleared'); }}
-                  className="text-xs px-3 py-1.5 rounded bg-danger/10 text-danger border border-danger/30 hover:bg-danger/20 transition-all">
+                  className="text-xs px-3 py-1.5 rounded bg-danger/10 text-danger border border-danger/30 hover:bg-danger/20 hover:scale-105 hover:shadow-lg hover:shadow-danger/30 transition-all duration-300">
                   Confirm
                 </button>
-                <button onClick={() => setConfirmClear(false)} className="text-xs px-3 py-1.5 rounded border border-ink-700 text-ink-400 hover:border-ink-500 transition-all">
+                <button onClick={() => setConfirmClear(false)} className="text-xs px-3 py-1.5 rounded border border-ink-700 text-ink-400 hover:border-ink-500 hover:scale-105 transition-all duration-300">
                   Cancel
                 </button>
               </div>
             ) : (
               <button onClick={() => setConfirmClear(true)}
-                className="flex-shrink-0 flex items-center gap-1.5 text-xs text-danger border border-danger/30 rounded-lg px-3 py-1.5 hover:bg-danger/10 transition-all">
+                className="flex-shrink-0 flex items-center gap-1.5 text-xs text-danger border border-danger/30 rounded-lg px-3 py-1.5 hover:bg-danger/10 hover:scale-105 hover:shadow-lg hover:shadow-danger/30 transition-all duration-300">
                 <Trash2 size={12} />Clear
               </button>
             )}
@@ -736,16 +1128,16 @@ function DataSection() {
             {confirmReset ? (
               <div className="flex gap-2 flex-shrink-0">
                 <button onClick={() => { resetAll(); setConfirmReset(false); toast.success('Settings reset to factory defaults'); window.location.reload(); }}
-                  className="text-xs px-3 py-1.5 rounded bg-danger/10 text-danger border border-danger/30 hover:bg-danger/20 transition-all">
+                  className="text-xs px-3 py-1.5 rounded bg-danger/10 text-danger border border-danger/30 hover:bg-danger/20 hover:scale-105 hover:shadow-lg hover:shadow-danger/30 transition-all duration-300">
                   Confirm & Reload
                 </button>
-                <button onClick={() => setConfirmReset(false)} className="text-xs px-3 py-1.5 rounded border border-ink-700 text-ink-400 hover:border-ink-500 transition-all">
+                <button onClick={() => setConfirmReset(false)} className="text-xs px-3 py-1.5 rounded border border-ink-700 text-ink-400 hover:border-ink-500 hover:scale-105 transition-all duration-300">
                   Cancel
                 </button>
               </div>
             ) : (
               <button onClick={() => setConfirmReset(true)}
-                className="flex-shrink-0 flex items-center gap-1.5 text-xs text-danger border border-danger/30 rounded-lg px-3 py-1.5 hover:bg-danger/10 transition-all">
+                className="flex-shrink-0 flex items-center gap-1.5 text-xs text-danger border border-danger/30 rounded-lg px-3 py-1.5 hover:bg-danger/10 hover:scale-105 hover:shadow-lg hover:shadow-danger/30 transition-all duration-300">
                 <RefreshCw size={12} />Reset All
               </button>
             )}
@@ -758,21 +1150,39 @@ function DataSection() {
 
 // ── Main Settings Page ────────────────────────────────────────────────────────
 export default function SettingsPage() {
+  const location = useLocation();
+  const [animateIn, setAnimateIn] = useState(false);
+
+  useEffect(() => {
+    setAnimateIn(false);
+    const timer = setTimeout(() => setAnimateIn(true), 50);
+    return () => clearTimeout(timer);
+  }, [location.pathname]);
+
   const tabs = [
-    { id: 'appearance', label: 'Appearance', icon: Palette   },
-    { id: 'presets',    label: 'Presets',    icon: Bookmark  },
-    { id: 'advanced',   label: 'Advanced',   icon: Zap       },
-    { id: 'account',    label: 'Account',    icon: User      },
-    { id: 'data',       label: 'Data',       icon: Database  },
+    { id: 'appearance', label: 'Appearance',  icon: Palette   },
+    { id: 'presets',    label: 'Presets',     icon: Bookmark  },
+    { id: 'display',    label: 'Display',     icon: Table2    },
+    { id: 'advanced',   label: 'Advanced',    icon: Zap       },
+    { id: 'lostfound',  label: 'Lost & Found',icon: Package   },
+    { id: 'account',    label: 'Account',     icon: User      },
+    { id: 'data',       label: 'Data',        icon: Database  },
   ];
 
   const [activeTab, setActiveTab] = useState('appearance');
 
   return (
-    <div className="flex h-full">
-      {/* Sidebar */}
-      <aside className="w-52 border-r border-ink-800 flex flex-col bg-ink-950 flex-shrink-0 pt-4">
-        <div className="px-4 mb-4">
+    <div className="flex flex-col md:flex-row h-full">
+      {/* Sidebar — vertical on desktop, horizontal scrollable tabs on mobile */}
+      <aside className={`
+        md:w-52 md:border-r md:border-ink-800 md:flex-col md:flex-shrink-0 md:pt-4
+        border-b border-ink-800 bg-ink-950
+        transition-all duration-700
+        ${animateIn ? 'opacity-100 translate-x-0' : 'opacity-0 md:-translate-x-full'}
+      `} style={{transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)'}}>
+
+        {/* Desktop: label header */}
+        <div className="hidden md:block px-4 mb-4 animate-in fade-in duration-700" style={{animationDelay: '100ms'}}>
           <div className="flex items-center gap-2">
             <Settings size={14} className="text-accent" />
             <span className="text-xs font-semibold text-ink-400 uppercase tracking-wider" style={{ fontFamily: 'Syne' }}>
@@ -780,10 +1190,29 @@ export default function SettingsPage() {
             </span>
           </div>
         </div>
-        <nav className="flex flex-col gap-0.5 px-2 overflow-y-auto">
+
+        {/* Mobile: horizontal scrollable tab bar */}
+        <div className="flex md:hidden overflow-x-auto hide-scrollbar px-2 py-2 gap-1">
           {tabs.map(({ id, label, icon: Icon }) => (
             <button key={id} onClick={() => setActiveTab(id)}
-              className={`sidebar-item rounded-lg text-sm ${activeTab === id ? 'active' : ''}`}>
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap flex-shrink-0 transition-all duration-300 ${
+                activeTab === id
+                  ? 'mirror-nav-active text-ink-900'
+                  : 'mirror-nav text-ink-500'
+              }`}
+              style={activeTab === id ? { color: '#000000' } : {}}>
+              <Icon size={13} />
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Desktop: vertical nav */}
+        <nav className="hidden md:flex flex-col gap-0.5 px-2 overflow-y-auto">
+          {tabs.map(({ id, label, icon: Icon }, idx) => (
+            <button key={id} onClick={() => setActiveTab(id)}
+              className={`sidebar-item rounded-lg text-sm transition-all duration-300 hover:scale-105 animate-in fade-in slide-in-from-left ${activeTab === id ? 'active scale-105 shadow-lg shadow-accent/30' : 'hover:shadow-lg hover:shadow-accent/20'}`}
+              style={{animationDelay: `${150 + idx * 50}ms`}}>
               <Icon size={15} />
               <span>{label}</span>
               {activeTab === id && <ChevronRight size={12} className="ml-auto text-ink-500" />}
@@ -793,18 +1222,22 @@ export default function SettingsPage() {
       </aside>
 
       {/* Content */}
-      <main className="flex-1 overflow-y-auto">
-        <div className="p-6 max-w-2xl space-y-5 pb-8">
-          <div className="mb-2">
+      <main className={`flex-1 overflow-y-auto transition-all duration-700 ${
+        animateIn ? 'opacity-100 translate-y-0 appstore-drop' : 'opacity-0 translate-y-10'
+      }`} style={{transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)'}}>
+        <div className="p-4 sm:p-6 w-full space-y-5 pb-8">
+          <div className="mb-2 animate-in fade-in slide-in-from-top duration-700" style={{animationDelay: '200ms'}}>
             <h1 className="text-xl font-bold text-ink-100" style={{ fontFamily: 'Syne' }}>Settings</h1>
             <p className="text-xs text-ink-500 mt-1">Preferences are saved to your browser automatically</p>
           </div>
 
-          {activeTab === 'appearance' && <AppearanceSection />}
-          {activeTab === 'presets'    && <PresetsSection />}
-          {activeTab === 'advanced'   && <AdvancedSection />}
-          {activeTab === 'account'    && <AccountSection />}
-          {activeTab === 'data'       && <DataSection />}
+          {activeTab === 'appearance' && <div className="animate-in fade-in duration-500"><AppearanceSection /></div>}
+          {activeTab === 'presets'    && <div className="animate-in fade-in duration-500"><PresetsSection /></div>}
+          {activeTab === 'display'    && <div className="animate-in fade-in duration-500"><TableSection /></div>}
+          {activeTab === 'advanced'   && <div className="animate-in fade-in duration-500"><AdvancedSection /></div>}
+          {activeTab === 'lostfound'  && <div className="animate-in fade-in duration-500"><LostFoundSection /></div>}
+          {activeTab === 'account'    && <div className="animate-in fade-in duration-500"><AccountSection /></div>}
+          {activeTab === 'data'       && <div className="animate-in fade-in duration-500"><DataSection /></div>}
         </div>
       </main>
     </div>

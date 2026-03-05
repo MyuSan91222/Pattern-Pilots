@@ -9,6 +9,9 @@ import AdminPage from './pages/AdminPage';
 import SettingsPage from './pages/SettingsPage';
 import HelpPage from './pages/HelpPage';
 import LostFoundPage from './pages/LostFoundPage';
+import GroupChatPage from './pages/GroupChatPage';
+import MessagesPage from './pages/MessagesPage';
+import ProfilePage from './pages/ProfilePage';
 import { ForgotPasswordPage, ResetPasswordPage, VerifyEmailPage } from './pages/AuthPages';
 import { useAuth } from './hooks/useAuth';
 import { useAuthStore } from './store/authStore';
@@ -20,7 +23,7 @@ function ThemeApplier() {
   const { accentPreset, bodyFont } = useSettingsStore();
 
   useEffect(() => {
-    const preset = ACCENT_PRESETS[accentPreset] || ACCENT_PRESETS.teal;
+    const preset = ACCENT_PRESETS[accentPreset] || ACCENT_PRESETS.navy || Object.values(ACCENT_PRESETS)[0];
     const root = document.documentElement;
     root.style.setProperty('--accent',       preset.rgb);
     root.style.setProperty('--accent-hover', preset.hover);
@@ -71,6 +74,13 @@ function AdminRoute({ children }) {
   return children;
 }
 
+function LostFoundRoute({ children }) {
+  const { user, isLoading } = useAuth();
+  if (isLoading) return null;
+  if (!user) return <Navigate to="/login" replace />;
+  return children;
+}
+
 // Applies a slide-up animation whenever the top-level route changes
 function AnimatedRoutes() {
   const location = useLocation();
@@ -87,9 +97,18 @@ function AnimatedRoutes() {
       {/* Protected routes */}
       <Route element={<AppLayout />}>
         <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/profile" element={<ProfilePage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/help" element={<HelpPage />} />
-        <Route path="/lost-found" element={<LostFoundPage />} />
+        <Route path="/lost-found" element={
+          <LostFoundRoute><LostFoundPage /></LostFoundRoute>
+        } />
+        <Route path="/group-chat" element={
+          <LostFoundRoute><GroupChatPage /></LostFoundRoute>
+        } />
+        <Route path="/messages" element={
+          <LostFoundRoute><MessagesPage /></LostFoundRoute>
+        } />
         <Route path="/admin" element={
           <AdminRoute><AdminPage /></AdminRoute>
         } />

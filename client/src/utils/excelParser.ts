@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import * as XLSX from '@e965/xlsx';
 import * as pdfjsLib from 'pdfjs-dist';
 import * as mammoth from 'mammoth';
 import type { ParsedFile, RawRecord } from '../types';
@@ -12,7 +12,7 @@ const JOIN_COLS = ['join time', 'timestamp', 'time', 'joined', 'join'];
 const ROLE_COLS = ['meeting role', 'role', 'participant role', 'user role'];
 
 // Sanitize strings to prevent prototype pollution attacks
-function sanitizeString(val: any): string {
+export function sanitizeString(val: any): string {
   if (!val) return '';
   const str = String(val).trim();
   // Prevent prototype pollution by filtering dangerous property names
@@ -57,7 +57,9 @@ function extractIdFromEmail(email: string): string | undefined {
 
 function buildRecords(rows: any[][], filename: string): ParsedFile {
   try {
-    if (rows.length < 2) return { filename, records: [] };
+    if (rows.length < 2) {
+      throw new Error('File does not contain enough data. Expected at least a header row and one data row.');
+    }
 
     // Find the header row: the first row (within first 25) that matches candidates
     // from at least 2 distinct column groups. This prevents metadata rows like
@@ -89,6 +91,11 @@ function buildRecords(rows: any[][], filename: string): ParsedFile {
     const idCol   = findCol(headers, ID_COLS);
     const joinCol = findCol(headers, JOIN_COLS);
     const roleCol = findCol(headers, ROLE_COLS);
+
+    // Validate that we found at least critical columns
+    if (!nameCol) {
+      throw new Error('Could not find a name column. Expected columns like: Full Name, Name, Participant, Student Name, or Attendee');
+    }
 
     const nameIdx = nameCol ? headers.indexOf(nameCol) : 0;
     const idIdx   = idCol   ? headers.indexOf(idCol)   : -1;
@@ -252,7 +259,10 @@ async function parsePdfBuffer(data: Uint8Array, filename: string): Promise<Parse
       }
     }
 
-    return rows.length >= 2 ? buildRecords(rows, filename) : { filename, records: [] };
+    if (rows.length < 2) {
+      throw new Error('PDF does not contain readable attendance data. Please ensure the PDF contains a table with attendance records.');
+    }
+    return buildRecords(rows, filename);
   } catch (err) {
     throw new Error(`Failed to parse PDF: ${err}`);
   }
@@ -278,7 +288,10 @@ async function parseDocxBuffer(data: ArrayBuffer, filename: string): Promise<Par
       }
     }
 
-    return rows.length >= 2 ? buildRecords(rows, filename) : { filename, records: [] };
+    if (rows.length < 2) {
+      throw new Error('DOCX does not contain readable attendance data. Please ensure the document contains a table with attendance records.');
+    }
+    return buildRecords(rows, filename);
   } catch (err) {
     throw new Error(`Failed to parse DOCX: ${err}`);
   }
@@ -291,7 +304,7 @@ export function parseExcelFile(file: File): Promise<ParsedFile> {
   const isCSV = ext === 'csv';
   const isPDF = ext === 'pdf';
   const isDocx = ext === 'docx';
-  const isExcel = ['xlsx', 'xls'].includes(ext);
+  const isExcel = ['xlsx', 'xls', 'xlsm'].includes(ext);
 
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -341,7 +354,7 @@ export function parseExcelFile(file: File): Promise<ParsedFile> {
       reader.onerror = () => reject(new Error('File read failed'));
       reader.readAsArrayBuffer(file);
     } else {
-      reject(new Error(`Unsupported file format: ${ext}. Supported formats: CSV, XLSX, XLS, PDF, DOCX`));
+      reject(new Error(`Unsupported file format: ${ext}. Supported formats: CSV, XLSX, XLS, XLSM, PDF, DOCX`));
     }
   });
 }

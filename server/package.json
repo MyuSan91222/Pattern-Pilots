@@ -5,11 +5,13 @@
   "scripts": {
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
-    "build": "echo 'No build step needed for Node.js server'"
+    "build": "echo 'No build step needed for Node.js server'",
+    "test": "vitest",
+    "test:coverage": "vitest --coverage"
   },
   "dependencies": {
-    "bcrypt": "^5.1.1",
-    "better-sqlite3": "^11.0.0",
+    "bcrypt": "^6.0.0",
+    "better-sqlite3": "^12.6.2",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
@@ -17,7 +19,12 @@
     "express-rate-limit": "^7.2.0",
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
+    "multer": "^2.1.0",
     "nodemailer": "^7.0.11",
-    "uuid": "^9.0.1"
+    "uuid": "^9.0.1",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "vitest": "^4.0.18"
   }
 }

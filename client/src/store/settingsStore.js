@@ -4,12 +4,16 @@ const STORAGE_KEY = 'aa_settings';
 
 // ── Accent & Font presets ─────────────────────────────────────────────────────
 export const ACCENT_PRESETS = {
-  teal:    { label: 'Teal',    hex: '#3da9fc', rgb: '61 169 252',  hover: '47 155 238', dark: '34 142 224' },
-  blue:    { label: 'Blue',    hex: '#2563eb', rgb: '37 99 235',   hover: '29 78 216',  dark: '30 64 175'  },
-  violet:  { label: 'Violet',  hex: '#7c3aed', rgb: '124 58 237',  hover: '109 40 217', dark: '91 33 182'  },
-  emerald: { label: 'Emerald', hex: '#059669', rgb: '5 150 105',   hover: '4 120 87',   dark: '6 95 70'    },
-  amber:   { label: 'Amber',   hex: '#d97706', rgb: '217 119 6',   hover: '180 83 9',   dark: '146 64 14'  },
-  rose:    { label: 'Rose',    hex: '#e11d48', rgb: '225 29 72',   hover: '190 18 60',  dark: '159 18 57'  },
+  navy:     { label: 'Navy',      hex: '#1e3a6e', rgb: '30 58 110',   hover: '24 46 88',   dark: '18 35 66'   },
+  jade:     { label: 'Jade',      hex: '#145a45', rgb: '20 90 69',    hover: '16 72 55',   dark: '12 54 41'   },
+  wine:     { label: 'Wine',      hex: '#7c1d38', rgb: '124 29 56',   hover: '99 23 45',   dark: '74 17 34'   },
+  cobalt:   { label: 'Cobalt',    hex: '#1a3a8f', rgb: '26 58 143',   hover: '21 46 114',  dark: '16 35 86'   },
+  plum:     { label: 'Plum',      hex: '#5b1f78', rgb: '91 31 120',   hover: '73 25 96',   dark: '55 19 72'   },
+  amber:    { label: 'Amber',     hex: '#7c3d00', rgb: '124 61 0',    hover: '99 49 0',    dark: '74 37 0'    },
+  petrol:   { label: 'Petrol',    hex: '#0e4d4d', rgb: '14 77 77',    hover: '11 62 62',   dark: '8 46 46'    },
+  rust:     { label: 'Rust',      hex: '#8b2500', rgb: '139 37 0',    hover: '111 30 0',   dark: '83 22 0'    },
+  forest:   { label: 'Forest',    hex: '#1a4a1a', rgb: '26 74 26',    hover: '21 59 21',   dark: '16 44 16'   },
+  storm:    { label: 'Storm',     hex: '#243b55', rgb: '36 59 85',    hover: '29 47 68',   dark: '22 35 51'   },
 };
 
 export const FONT_PRESETS = [
@@ -42,11 +46,12 @@ export const BUILTIN_PRESETS = [
   },
 ];
 
-// ── Factory defaults ──────────────────────────────────────────────────────────
+// ── Factory defaults ──────────────────────────────────────────────────────
 export const FACTORY_DEFAULTS = {
   // Appearance
-  accentPreset: 'teal',
+  accentPreset: 'navy',
   bodyFont: 'DM Sans',
+  theme: 'dark', // 'dark' | 'light'
   // Default analysis config (used by Reset button)
   defaultConfig: {
     classStart: '09:00', classEnd: '10:00',
@@ -76,7 +81,7 @@ export const FACTORY_DEFAULTS = {
   // At-risk threshold (percentage)
   atRiskThreshold: 70,
   // Analysis behaviour
-  autoReanalyze: false,
+  autoReanalyze: true,
   // Export behaviour
   exportFormat: 'csv',
   anonymizeExports: false,
@@ -93,9 +98,16 @@ function loadFromStorage() {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (!saved) return FACTORY_DEFAULTS;
     const parsed = JSON.parse(saved);
+    if (!parsed || typeof parsed !== 'object') return FACTORY_DEFAULTS;
+    
+    // If the stored accent key no longer exists (e.g. old preset was removed), reset to default
+    const accentPreset = ACCENT_PRESETS[parsed.accentPreset]
+      ? parsed.accentPreset
+      : FACTORY_DEFAULTS.accentPreset;
     return {
       ...FACTORY_DEFAULTS,
       ...parsed,
+      accentPreset,
       defaultConfig: { ...FACTORY_DEFAULTS.defaultConfig, ...(parsed.defaultConfig || {}) },
       gradeThresholds: parsed.gradeThresholds || FACTORY_DEFAULTS.gradeThresholds,
       visibleColumns:  { ...FACTORY_DEFAULTS.visibleColumns, ...(parsed.visibleColumns || {}) },
@@ -109,7 +121,7 @@ function loadFromStorage() {
 function persist(state) {
   try {
     const keys = [
-      'accentPreset', 'bodyFont', 'defaultConfig', 'customPresets',
+      'accentPreset', 'bodyFont', 'theme', 'defaultConfig', 'customPresets',
       'gradeThresholds', 'visibleColumns',
       'highScoreThreshold', 'midScoreThreshold', 'atRiskThreshold',
       'autoReanalyze', 'exportFormat', 'anonymizeExports', 'persistResults',
@@ -130,6 +142,7 @@ export const useSettingsStore = create((set, get) => ({
   // Appearance
   setAccentPreset: (accentPreset) => set((s) => { const n = { ...s, accentPreset }; persist(n); return n; }),
   setBodyFont: (bodyFont)         => set((s) => { const n = { ...s, bodyFont };     persist(n); return n; }),
+  setTheme: (theme)               => set((s) => { const n = { ...s, theme };        persist(n); return n; }),
 
   // Default config
   updateDefaultConfig: (partial) =>
@@ -236,7 +249,7 @@ export const useSettingsStore = create((set, get) => ({
   exportSettingsJSON: () => {
     const s = get();
     const keys = [
-      'accentPreset', 'bodyFont', 'defaultConfig', 'customPresets',
+      'accentPreset', 'bodyFont', 'theme', 'defaultConfig', 'customPresets',
       'gradeThresholds', 'visibleColumns',
       'highScoreThreshold', 'midScoreThreshold', 'atRiskThreshold',
       'autoReanalyze', 'exportFormat', 'anonymizeExports', 'persistResults',

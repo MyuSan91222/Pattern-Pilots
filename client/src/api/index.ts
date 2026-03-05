@@ -63,6 +63,11 @@ export const authApi = {
   verifyEmail: (token: string) => api.post('/auth/verify-email', { token }),
   forgot: (email: string) => api.post('/auth/forgot', { email }),
   reset: (data: { token: string; password: string }) => api.post('/auth/reset', data),
+  // User message requests to admins
+  getAdmins: () => api.get('/auth/admins'),
+  contactAdmin: (data: { admin_email: string; message?: string }) => api.post('/auth/contact-admin', data),
+  getMessageRequests: () => api.get('/auth/message-requests'),
+  cancelMessageRequest: (id: string | number) => api.delete(`/auth/message-requests/${id}`),
 };
 
 // Admin
@@ -73,6 +78,14 @@ export const adminApi = {
   getUserStats: (userId: string | number) => api.get(`/admin/users/${userId}/stats`),
   clearActivity: (email?: string) => api.delete('/admin/activity', { params: email ? { email } : {} }),
   updateRole: (email: string, role: string) => api.put(`/admin/users/${encodeURIComponent(email)}/role`, { role }),
+  getMessageRequests: () => api.get('/admin/message-requests'),
+  // User message request handling (admin side)
+  acceptUserRequest: (id: string | number) => api.put(`/auth/user-requests/${id}/accept`),
+  rejectUserRequest: (id: string | number) => api.put(`/auth/user-requests/${id}/reject`),
+  // Group management (admin)
+  getGroups: (params?: { page?: number; search?: string }) => api.get('/admin/groups', { params }),
+  suspendGroup: (groupId: number, reason: string) => api.put(`/groupchat/groups/${groupId}/suspend`, { reason }),
+  unsuspendGroup: (groupId: number) => api.put(`/groupchat/groups/${groupId}/unsuspend`),
 };
 
 export default api;
