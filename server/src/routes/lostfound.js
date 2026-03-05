@@ -996,4 +996,51 @@ router.get('/conversations/:id/is-muted', requireAuth, (req, res) => {
   }
 });
 
+// ── Saved Items ────────────────────────────────────────────────────────────────
+
+// GET /api/lostfound/saved
+router.get('/saved', requireAuth, (req, res) => {
+  try {
+    const db = getDb();
+    const items = db.prepare(`
+      SELECT i.*, s.saved_at,
+        (SELECT COUNT(*) FROM lf_conversations WHERE item_id = i.id) AS conversation_count
+      FROM lf_saved_items s
+      JOIN lf_items i ON i.id = s.item_id
+      WHERE s.user_email = ?
+      ORDER BY s.saved_at DESC
+    `).all(req.user.email);
+    res.json({ items });
+  } catch (err) {
+    console.error('[LF] GET /saved error:', err);
+    res.status(500).json({ error: 'Failed to fetch saved items' });
+  }
+});
+
+// POST /api/lostfound/saved/:itemId
+router.post('/saved/:itemId', requireAuth, (req, res) => {
+  try {
+    const db = getDb();
+    const item = db.prepare('SELECT id FROM lf_items WHERE id = ?').get(req.params.itemId);
+    if (!item) return res.status(404).json({ error: 'Item not found' });
+    db.prepare('INSERT OR IGNORE INTO lf_saved_items (user_email, item_id) VALUES (?, ?)').run(req.user.email, req.params.itemId);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[LF] POST /saved/:itemId error:', err);
+    res.status(500).json({ error: 'Failed to save item' });
+  }
+});
+
+// DELETE /api/lostfound/saved/:itemId
+router.delete('/saved/:itemId', requireAuth, (req, res) => {
+  try {
+    const db = getDb();
+    db.prepare('DELETE FROM lf_saved_items WHERE user_email = ? AND item_id = ?').run(req.user.email, req.params.itemId);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[LF] DELETE /saved/:itemId error:', err);
+    res.status(500).json({ error: 'Failed to unsave item' });
+  }
+});
+
 export default router;

@@ -3,7 +3,21 @@ import {
   ArrowLeft, MessageCircle, Mail, Send, Paperclip, Smile, X, FileText as FileIcon,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { lfApi } from '../api';
+import { lfApi, presenceApi } from '../api';
+
+function isOnline(lastSeen) {
+  if (!lastSeen) return false;
+  return (Date.now() - new Date(lastSeen + 'Z').getTime()) < 3 * 60 * 1000;
+}
+
+function lastSeenText(lastSeen) {
+  if (!lastSeen) return 'Offline';
+  const diff = Math.floor((Date.now() - new Date(lastSeen + 'Z').getTime()) / 1000);
+  if (diff < 180) return 'Active now';
+  if (diff < 3600) return `Active ${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `Active ${Math.floor(diff / 3600)}h ago`;
+  return `Active ${Math.floor(diff / 86400)}d ago`;
+}
 
 // ── Helper functions ──────────────────────────────────────────────────────────
 function formatTime(iso) {
@@ -23,7 +37,7 @@ function formatDate(iso) {
 }
 
 // ── ChatView ────────────────────────────────────────────────────────────────────
-function ChatView({ conversation, currentUser, onBack }) {
+function ChatView({ conversation, currentUser, onBack, otherUserLastSeen }) {
   const [messages, setMessages]   = useState([]);
   const [input, setInput]         = useState('');
   const [sending, setSending]     = useState(false);
@@ -201,18 +215,26 @@ function ChatView({ conversation, currentUser, onBack }) {
         <button onClick={onBack} className="text-ink-500 hover:text-ink-300 transition-colors">
           <ArrowLeft size={16} />
         </button>
-        <div className="w-8 h-8 rounded-full bg-accent/10 border border-accent/30 flex items-center justify-center flex-shrink-0">
-          <span className="text-accent text-xs font-bold">{otherEmail?.[0]?.toUpperCase() || '?'}</span>
+        <div className="relative flex-shrink-0">
+          <div className="w-8 h-8 rounded-full bg-accent/10 border border-accent/30 flex items-center justify-center">
+            <span className="text-accent text-xs font-bold">{otherEmail?.[0]?.toUpperCase() || '?'}</span>
+          </div>
+          {isOnline(otherUserLastSeen) && (
+            <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-green-400 border border-ink-950" />
+          )}
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-ink-100 truncate">{otherEmail}</p>
           <p className="text-xs text-ink-500 truncate">
+            {otherUserLastSeen && (
+              <span className={`mr-1.5 ${isOnline(otherUserLastSeen) ? 'text-green-400' : ''}`}>
+                {lastSeenText(otherUserLastSeen)} ·&nbsp;
+              </span>
+            )}
             {conversation.item_type === 'system' ? (
               <span className="text-accent font-semibold">💬 Developer Support</span>
             ) : (
-              <>
-                Re: <span className="text-ink-400">{conversation.item_title}</span>
-              </>
+              <>Re: <span className="text-ink-400">{conversation.item_title}</span></>
             )}
           </p>
         </div>
@@ -445,6 +467,7 @@ export function MessagesView({ currentUser, openConvId, onUnreadChange }) {
   const [incomingRequests, setIncomingRequests] = useState([]);
   const [activeConv, setActiveConv]       = useState(null);
   const [loading, setLoading]             = useState(true);
+  const [onlineStatuses, setOnlineStatuses] = useState({});
   const lastConvCountRef = useRef(0);
 
   const loadConversations = useCallback(async () => {
@@ -491,10 +514,9 @@ export function MessagesView({ currentUser, openConvId, onUnreadChange }) {
     }
   }, [onUnreadChange]);
 
-  useEffect(() => { 
+  useEffect(() => {
     loadConversations();
     loadIncomingRequests();
-    // Poll for new messages and requests every 500ms for near real-time updates
     const conversationInterval = setInterval(loadConversations, 500);
     const requestInterval = setInterval(loadIncomingRequests, 500);
     return () => {
@@ -502,6 +524,24 @@ export function MessagesView({ currentUser, openConvId, onUnreadChange }) {
       clearInterval(requestInterval);
     };
   }, [loadConversations, loadIncomingRequests]);
+
+  // Poll online status for all conversation participants
+  useEffect(() => {
+    if (conversations.length === 0) return;
+    const emails = [...new Set(conversations.map(c =>
+      c.item_owner_email === currentUser.email ? c.inquirer_email : c.item_owner_email
+    ))].filter(Boolean);
+    if (emails.length === 0) return;
+    const poll = async () => {
+      try {
+        const { data } = await presenceApi.getOnlineStatus(emails);
+        setOnlineStatuses(data.statuses || {});
+      } catch { /* silent */ }
+    };
+    poll();
+    const id = setInterval(poll, 15000);
+    return () => clearInterval(id);
+  }, [conversations, currentUser.email]);
 
   const handleRespondRequest = async (id, accepted) => {
     try {
@@ -544,11 +584,14 @@ export function MessagesView({ currentUser, openConvId, onUnreadChange }) {
   }
 
   if (activeConv) {
+    const otherEmail = activeConv.item_owner_email === currentUser.email
+      ? activeConv.inquirer_email : activeConv.item_owner_email;
     return (
       <ChatView
         conversation={activeConv}
         currentUser={currentUser}
         onBack={() => { setActiveConv(null); loadConversations(); }}
+        otherUserLastSeen={onlineStatuses[otherEmail] || null}
       />
     );
   }
@@ -647,8 +690,13 @@ export function MessagesView({ currentUser, openConvId, onUnreadChange }) {
                   onClick={() => setActiveConv(conv)}
                   className="w-full flex items-center gap-3 p-4 card hover:border-accent/50 hover:bg-ink-900/60 transition-all text-left"
                 >
-                  <div className="w-10 h-10 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center flex-shrink-0">
-                    <span className="text-accent text-xs font-bold">{otherEmail?.[0]?.toUpperCase() || '?'}</span>
+                  <div className="relative flex-shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center">
+                      <span className="text-accent text-xs font-bold">{otherEmail?.[0]?.toUpperCase() || '?'}</span>
+                    </div>
+                    {isOnline(onlineStatuses[otherEmail]) && (
+                      <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-green-400 border-2 border-ink-950" />
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-0.5">

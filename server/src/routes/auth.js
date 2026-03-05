@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import bcrypt from 'bcrypt';
-import { getDb, recordLogin, recordLogout, getUserActivityStats } from '../db/database.js';
+import { getDb, recordLogin, recordLogout, getUserActivityStats, insertNotification } from '../db/database.js';
 import {
   generateAccessToken, generateRefreshToken, verifyRefreshToken,
   generateToken, sendVerificationEmail, sendResetEmail, verifyAccessToken
@@ -75,6 +75,10 @@ router.post('/login', async (req, res) => {
 
   const valid = await bcrypt.compare(password, user.password_hash);
   if (!valid) return res.status(401).json({ error: 'Invalid email or password' });
+
+  if (user.banned_at) {
+    return res.status(403).json({ error: `Your account has been banned. Reason: ${user.banned_reason || 'Contact admin for details'}` });
+  }
 
   if (REQUIRE_EMAIL_VERIFICATION && !user.verified) {
     return res.status(403).json({ error: 'Please verify your email before logging in' });
@@ -488,6 +492,65 @@ router.get('/profile', requireAuth, (req, res) => {
   } catch (error) {
     console.error('[Auth] Error fetching profile:', error);
     res.status(500).json({ error: 'Failed to fetch profile' });
+  }
+});
+
+// GET /api/auth/online-status?emails=a@b.c,c@d.e
+router.get('/online-status', requireAuth, (req, res) => {
+  try {
+    const raw = req.query.emails || '';
+    const emails = raw.split(',').map(e => e.trim()).filter(Boolean).slice(0, 50);
+    if (emails.length === 0) return res.json({ statuses: {} });
+    const db = getDb();
+    const placeholders = emails.map(() => '?').join(',');
+    const rows = db.prepare(`SELECT email, last_seen FROM users WHERE email IN (${placeholders})`).all(...emails);
+    const statuses = {};
+    for (const row of rows) statuses[row.email] = row.last_seen || null;
+    res.json({ statuses });
+  } catch (err) {
+    console.error('[Auth] online-status error:', err);
+    res.status(500).json({ error: 'Failed to fetch online status' });
+  }
+});
+
+// GET /api/search?q=keyword
+router.get('/search', requireAuth, (req, res) => {
+  try {
+    const q = (req.query.q || '').trim();
+    if (q.length < 2) return res.json({ items: [], groups: [], users: [] });
+    const db = getDb();
+    const like = `%${q}%`;
+
+    const items = db.prepare(`
+      SELECT id, title, category, type, location, created_at
+      FROM lf_items
+      WHERE status = 'active' AND (title LIKE ? OR description LIKE ? OR category LIKE ?)
+      LIMIT 5
+    `).all(like, like, like);
+
+    const groups = db.prepare(`
+      SELECT g.id, g.name, g.description, g.avatar_color, g.is_public,
+             (SELECT COUNT(*) FROM gc_members WHERE group_id = g.id) AS member_count
+      FROM gc_groups g
+      WHERE (g.is_public = 1 OR EXISTS (SELECT 1 FROM gc_members WHERE group_id = g.id AND user_email = ?))
+        AND (g.name LIKE ? OR g.description LIKE ?)
+        AND g.is_suspended = 0
+      LIMIT 5
+    `).all(req.user.email, like, like);
+
+    const users = req.user.role === 'admin'
+      ? db.prepare(`
+          SELECT email, first_name, last_name, nickname, last_seen
+          FROM users
+          WHERE role = 'user' AND (email LIKE ? OR first_name LIKE ? OR last_name LIKE ? OR nickname LIKE ?)
+          LIMIT 5
+        `).all(like, like, like, like)
+      : [];
+
+    res.json({ items, groups, users });
+  } catch (err) {
+    console.error('[Auth] search error:', err);
+    res.status(500).json({ error: 'Search failed' });
   }
 });
 

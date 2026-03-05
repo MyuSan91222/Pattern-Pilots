@@ -31,7 +31,7 @@ router.get('/users', (req, res) => {
   const params = search ? [`%${search}%`] : [];
 
   const users = db.prepare(`
-    SELECT id, email, role, verified, created_at, last_login, last_logout, activity_count
+    SELECT id, email, role, verified, created_at, last_login, last_logout, activity_count, banned_at, banned_reason
     FROM users ${where}
     ORDER BY created_at DESC
     LIMIT ? OFFSET ?
@@ -259,16 +259,70 @@ router.post('/message-requests', (req, res) => {
     // Insert or replace message request from admin to user with sender_type = 'admin'
     db.prepare(`
       INSERT INTO admin_message_requests (admin_email, user_email, status, message, sender_type)
-      VALUES (?, ?, 'pending', ?, 'admin')
+      VALUES (?, ?, 'accepted', ?, 'admin')
       ON CONFLICT(admin_email, user_email) DO UPDATE SET
-        status = 'pending',
+        status = 'accepted',
         message = ?,
         sender_type = 'admin',
         created_at = datetime('now'),
-        responded_at = NULL
+        responded_at = datetime('now')
     `).run(admin_email, user_email, message || null, message || null);
 
-    res.status(201).json({ success: true, message: 'Request sent' });
+    // Auto-create conversation and send the message
+    let convId = null;
+    const autoMessage = message || 'Hello! An admin has started a conversation with you.';
+
+    try {
+      // Check for existing conversation between admin and user
+      const existingConv = db.prepare(`
+        SELECT id FROM lf_conversations
+        WHERE (item_owner_email = ? AND inquirer_email = ?)
+        OR (item_owner_email = ? AND inquirer_email = ?)
+      `).get(admin_email, user_email, user_email, admin_email);
+
+      if (existingConv) {
+        convId = existingConv.id;
+      } else {
+        // Create a placeholder lf_item for admin-initiated conversations
+        let adminItem = db.prepare(`SELECT id FROM lf_items WHERE user_email = ? AND title = 'Admin Direct Message'`).get(admin_email);
+        if (!adminItem) {
+          const itemResult = db.prepare(`
+            INSERT INTO lf_items (user_id, user_email, type, title, description, category, status)
+            VALUES (0, ?, 'found', 'Admin Direct Message', 'System-created item for admin messages', 'other', 'resolved')
+          `).run(admin_email);
+          adminItem = { id: itemResult.lastInsertRowid };
+        }
+
+        const conv = db.prepare(`
+          INSERT INTO lf_conversations (item_id, item_owner_email, inquirer_email)
+          VALUES (?, ?, ?)
+        `).run(adminItem.id, admin_email, user_email);
+        convId = conv.lastInsertRowid;
+      }
+
+      // Encrypt and send the message
+      const iv = crypto.randomBytes(12);
+      const cipher = crypto.createCipheriv('aes-256-gcm', ENCRYPTION_KEY, iv);
+      let enc = cipher.update(autoMessage, 'utf8', 'hex');
+      enc += cipher.final('hex');
+      const authTag = cipher.getAuthTag().toString('hex');
+
+      db.prepare(`
+        INSERT INTO lf_messages (conversation_id, sender_email, message_enc, iv, auth_tag)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(convId, admin_email, enc, iv.toString('hex'), authTag);
+
+      // Notify the user
+      insertNotification(db, user_email, 'admin_message',
+        'New message from admin',
+        `An admin has sent you a message. Check your messages to view it.`,
+        '/messages'
+      );
+    } catch (msgErr) {
+      console.error('[Admin] Error creating auto-message:', msgErr);
+    }
+
+    res.status(201).json({ success: true, message: 'Message sent to user', conversationId: convId });
   } catch (error) {
     console.error('Error sending message request:', error);
     res.status(500).json({ error: 'Failed to send request' });
@@ -448,6 +502,42 @@ router.put('/message-requests/:id/reject', (req, res) => {
     console.error('Error rejecting request:', error);
     res.status(500).json({ error: 'Failed to reject request' });
   }
+});
+
+// PUT /api/admin/users/:id/ban - Ban a user by ID
+router.put('/users/:id/ban', (req, res) => {
+  const db = getDb();
+  const userId = parseInt(req.params.id);
+  const { reason } = req.body;
+  
+  const user = db.prepare('SELECT id, email, role FROM users WHERE id = ?').get(userId);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  if (user.role === 'admin') return res.status(403).json({ error: 'Cannot ban an admin user' });
+  
+  db.prepare('UPDATE users SET banned_at = datetime("now"), banned_reason = ? WHERE id = ?').run(reason || 'Banned by admin', userId);
+  
+  // Revoke all refresh tokens for this user
+  db.prepare('DELETE FROM refresh_tokens WHERE user_email = ?').run(user.email);
+  
+  logActivity(req.user.email, 'ban_user', `Banned user #${userId} (${user.email}): ${reason || 'No reason'}`);
+  
+  res.json({ success: true, message: `User ${user.email} has been banned` });
+});
+
+// PUT /api/admin/users/:id/unban - Unban a user by ID
+router.put('/users/:id/unban', (req, res) => {
+  const db = getDb();
+  const userId = parseInt(req.params.id);
+  
+  const user = db.prepare('SELECT id, email, banned_at FROM users WHERE id = ?').get(userId);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  if (!user.banned_at) return res.status(400).json({ error: 'User is not banned' });
+  
+  db.prepare('UPDATE users SET banned_at = NULL, banned_reason = NULL WHERE id = ?').run(userId);
+  
+  logActivity(req.user.email, 'unban_user', `Unbanned user #${userId} (${user.email})`);
+  
+  res.json({ success: true, message: `User ${user.email} has been unbanned` });
 });
 
 export default router;

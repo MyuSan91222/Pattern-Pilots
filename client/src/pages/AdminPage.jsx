@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Search, Trash2, Shield, User, RefreshCw, MessageCircle, Lock, Unlock, AlertCircle, ClipboardList, CheckCircle, XCircle, Clock, Users, Layers } from 'lucide-react';
+import { Search, Trash2, Shield, User, RefreshCw, MessageCircle, Lock, Unlock, AlertCircle, ClipboardList, CheckCircle, XCircle, Clock, Users, Layers, Ban, ShieldOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { adminApi, gcApi } from '../api';
 
@@ -24,6 +24,8 @@ export default function AdminPage() {
   const [appeals, setAppeals] = useState([]);
   const [appealNotes, setAppealNotes] = useState({}); // appealId -> note text
   const [appealActioning, setAppealActioning] = useState(null); // appealId being actioned
+  const [banningUserId, setBanningUserId] = useState(null);
+  const [banReason, setBanReason] = useState('');
 
   useEffect(() => {
     setAnimateIn(false);
@@ -119,6 +121,33 @@ export default function AdminPage() {
       toast.success(`Updated ${email} to ${newRole}`);
       fetchUsers();
     } catch { toast.error('Failed to update role'); }
+  };
+
+  const handleBanUser = async (userId, email) => {
+    if (!banReason.trim()) {
+      toast.error('Please enter a ban reason');
+      return;
+    }
+    try {
+      await adminApi.banUser(userId, banReason);
+      toast.success(`Banned ${email}`);
+      setBanningUserId(null);
+      setBanReason('');
+      fetchUsers();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to ban user');
+    }
+  };
+
+  const handleUnbanUser = async (userId, email) => {
+    if (!window.confirm(`Unban ${email}?`)) return;
+    try {
+      await adminApi.unbanUser(userId);
+      toast.success(`Unbanned ${email}`);
+      fetchUsers();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to unban user');
+    }
   };
 
   const handleSuspendGroup = async (groupId) => {
@@ -269,14 +298,14 @@ export default function AdminPage() {
         <div className="relative flex-1 max-w-sm">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-500" />
           <input className="input pl-9" 
-            placeholder={tab === 'users' ? 'Search email...' : tab === 'activity' ? 'Filter by email...' : 'Search sender or recipient...'}
+            placeholder={tab === 'users' ? 'Search email or ID...' : tab === 'activity' ? 'Filter by email...' : 'Search sender or recipient...'}
             value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
         </div>
-        <button onClick={tab === 'users' ? fetchUsers : tab === 'activity' ? fetchActivity : fetchMessages} className="btn-ghost flex items-center gap-2 transition-all hover:scale-105 hover:text-accent hover:bg-ink-800/50">
-          <RefreshCw size={14} className="transition-all hover:rotate-180" />Refresh
+        <button onClick={tab === 'users' ? fetchUsers : tab === 'activity' ? fetchActivity : fetchMessages} className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-all hover:scale-105 flex items-center gap-2 shadow-md">
+          <RefreshCw size={14} />Refresh
         </button>
         {tab === 'activity' && (
-          <button onClick={() => handleClearActivity()} className="btn-danger flex items-center gap-2 transition-all hover:scale-105 hover:shadow-lg hover:shadow-danger/30">
+          <button onClick={() => handleClearActivity()} className="px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 transition-all hover:scale-105 flex items-center gap-2 shadow-md">
             <Trash2 size={14} />Clear All
           </button>
         )}
@@ -302,7 +331,7 @@ export default function AdminPage() {
             <table className="w-full">
               <thead className="border-b border-gray-300 bg-white">
                 <tr>
-                  {['#', 'Email', 'Role', 'Verified', 'Activities', 'Registered', 'Last Login', 'Actions'].map(h => (
+                  {['#', 'ID', 'Email', 'Role', 'Status', 'Activities', 'Registered', 'Last Login', 'Actions'].map(h => (
                     <th key={h} className="py-3 px-4 text-left text-xs font-medium text-gray-700 border-r border-gray-300"
                       style={{ fontFamily: 'Syne', letterSpacing: '0.05em' }}>{h.toUpperCase()}</th>
                   ))}
@@ -310,11 +339,14 @@ export default function AdminPage() {
               </thead>
               <tbody>
                 {isLoading ? (
-                  <tr><td colSpan={8} className="py-12 text-center text-gray-600 text-sm">Loading...</td></tr>
+                  <tr><td colSpan={9} className="py-12 text-center text-gray-600 text-sm">Loading...</td></tr>
                 ) : users.map((user, i) => (
-                  <tr key={user.email} className="border-b border-gray-200 hover:bg-gray-50 transition-all">
+                  <tr key={user.email} className={`border-b border-gray-200 hover:bg-gray-50 transition-all ${user.banned_at ? 'bg-red-50' : ''}`}>
                     <td className="py-3 px-4 text-xs text-gray-600 font-mono w-10 border-r border-gray-200">
                       {(page - 1) * 100 + i + 1}
+                    </td>
+                    <td className="py-3 px-4 text-xs text-gray-500 font-mono font-bold border-r border-gray-200">
+                      {user.id}
                     </td>
                     <td className="py-3 px-4 text-sm text-gray-900 border-r border-gray-200">{user.email}</td>
                     <td className="py-3 px-4 border-r border-gray-200">
@@ -326,9 +358,15 @@ export default function AdminPage() {
                       </span>
                     </td>
                     <td className="py-3 px-4 border-r border-gray-200">
-                      <span className={`text-xs ${user.verified ? 'text-green-600' : 'text-amber-600'}`}>
-                        {user.verified ? '✓ Verified' : '⏳ Pending'}
-                      </span>
+                      {user.banned_at ? (
+                        <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-semibold">
+                          <Ban size={10} /> BANNED
+                        </span>
+                      ) : user.verified ? (
+                        <span className="text-xs text-green-600 font-semibold">✓ Active</span>
+                      ) : (
+                        <span className="text-xs text-amber-600">⏳ Pending</span>
+                      )}
                     </td>
                     <td className="py-3 px-4 text-xs text-gray-700 font-mono font-bold border-r border-gray-200">
                       {user.activity_count || 0}
@@ -342,10 +380,47 @@ export default function AdminPage() {
                         : <span className="text-gray-400">Never</span>}
                     </td>
                     <td className="py-3 px-4">
-                      <button onClick={() => handleRoleToggle(user.email, user.role)}
-                        className="text-xs text-blue-600 hover:text-blue-800 transition-all hover:font-semibold px-2 py-1 rounded hover:bg-blue-50">
-                        Toggle Role
-                      </button>
+                      <div className="flex items-center gap-1 flex-wrap">
+                        <button onClick={() => handleRoleToggle(user.email, user.role)}
+                          className="text-xs text-blue-600 hover:text-blue-800 transition-all font-semibold px-2 py-1 rounded hover:bg-blue-50 border border-blue-200">
+                          Toggle Role
+                        </button>
+                        {user.role !== 'admin' && !user.banned_at && (
+                          <button onClick={() => { setBanningUserId(user.id); setBanReason(''); }}
+                            className="text-xs text-red-600 hover:text-red-800 transition-all font-semibold px-2 py-1 rounded hover:bg-red-50 border border-red-200 flex items-center gap-1">
+                            <Ban size={10} /> Ban
+                          </button>
+                        )}
+                        {user.banned_at && (
+                          <button onClick={() => handleUnbanUser(user.id, user.email)}
+                            className="text-xs text-green-600 hover:text-green-800 transition-all font-semibold px-2 py-1 rounded hover:bg-green-50 border border-green-200 flex items-center gap-1">
+                            <ShieldOff size={10} /> Unban
+                          </button>
+                        )}
+                      </div>
+                      {/* Ban reason modal inline */}
+                      {banningUserId === user.id && (
+                        <div className="mt-2 p-2 bg-red-50 rounded border border-red-200 space-y-2">
+                          <input
+                            type="text"
+                            placeholder="Ban reason..."
+                            value={banReason}
+                            onChange={e => setBanReason(e.target.value)}
+                            className="w-full px-2 py-1 text-xs border border-red-300 rounded focus:outline-none focus:ring-1 focus:ring-red-400 bg-white text-gray-800"
+                          />
+                          <div className="flex gap-1">
+                            <button onClick={() => handleBanUser(user.id, user.email)}
+                              disabled={!banReason.trim()}
+                              className="text-xs px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 font-semibold">
+                              Confirm Ban
+                            </button>
+                            <button onClick={() => setBanningUserId(null)}
+                              className="text-xs px-2 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 font-semibold">
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -366,17 +441,17 @@ export default function AdminPage() {
                 <button 
                   disabled={page <= 1} 
                   onClick={() => setPage(p => p - 1)} 
-                  className="btn-ghost px-4 py-2 text-xs disabled:opacity-30 transition-all hover:scale-105"
+                  className="px-4 py-2 text-xs font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-md"
                 >
                   ← Previous
                 </button>
-                <span className="px-4 py-2 text-xs text-blue-700 font-bold bg-blue-100 rounded-md">
+                <span className="px-4 py-2 text-xs text-blue-700 font-bold bg-blue-100 rounded-md border border-blue-300">
                   Page {page} of {Math.ceil(total / 100)}
                 </span>
                 <button 
                   disabled={page * 100 >= total} 
                   onClick={() => setPage(p => p + 1)} 
-                  className="btn-ghost px-4 py-2 text-xs disabled:opacity-30 transition-all hover:scale-105"
+                  className="px-4 py-2 text-xs font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-md"
                 >
                   Next →
                 </button>

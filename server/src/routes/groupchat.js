@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import crypto from 'crypto';
-import { getDb } from '../db/database.js';
+import { getDb, insertNotification } from '../db/database.js';
 import { requireAuth } from '../middleware/auth.js';
 import { join } from 'path';
 import { existsSync, mkdirSync } from 'fs';
@@ -577,6 +577,13 @@ router.post('/groups/:id/join-requests/:requestId/approve', requireAuth, (req, r
     db.prepare(`UPDATE gc_join_requests SET status = 'approved' WHERE id = ?`).run(request.id);
     db.prepare(`INSERT OR IGNORE INTO gc_members (group_id, user_email, role) VALUES (?, ?, 'member')`).run(req.params.id, request.requester_email);
 
+    const group = db.prepare('SELECT name FROM gc_groups WHERE id = ?').get(req.params.id);
+    insertNotification(db, request.requester_email, 'join_approved',
+      'Join request approved',
+      `You have been added to "${group?.name || 'the group'}".`,
+      '/group-chat'
+    );
+
     res.json({ success: true });
   } catch (err) {
     console.error('[GC] POST approve error:', err);
@@ -595,6 +602,14 @@ router.post('/groups/:id/join-requests/:requestId/reject', requireAuth, (req, re
     if (!request) return res.status(404).json({ error: 'Request not found' });
 
     db.prepare(`UPDATE gc_join_requests SET status = 'rejected' WHERE id = ?`).run(request.id);
+
+    const group = db.prepare('SELECT name FROM gc_groups WHERE id = ?').get(req.params.id);
+    insertNotification(db, request.requester_email, 'join_rejected',
+      'Join request declined',
+      `Your request to join "${group?.name || 'the group'}" was declined.`,
+      '/group-chat'
+    );
+
     res.json({ success: true });
   } catch (err) {
     console.error('[GC] POST reject error:', err);

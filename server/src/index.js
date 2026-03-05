@@ -9,6 +9,7 @@ import authRoutes from './routes/auth.js';
 import adminRoutes from './routes/admin.js';
 import lostFoundRoutes from './routes/lostfound.js';
 import groupChatRoutes from './routes/groupchat.js';
+import notificationsRoutes from './routes/notifications.js';
 import { getDb, ensureAdminUser } from './db/database.js';
 import { verifyAccessToken } from './utils/auth.js';
 
@@ -54,6 +55,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/lostfound', lostFoundRoutes);
 app.use('/api/groupchat', groupChatRoutes);
+app.use('/api/notifications', notificationsRoutes);
 
 // Activity log endpoint (for authenticated users)
 app.get('/api/activity', async (req, res) => {

@@ -92,6 +92,9 @@ export const adminApi = {
   deleteMessageRequest: (id) => api.delete(`/admin/message-requests/${id}`),
   acceptUserRequest: (id) => api.put(`/admin/message-requests/${id}/accept`),
   rejectUserRequest: (id) => api.put(`/admin/message-requests/${id}/reject`),
+  // Ban management
+  banUser: (userId, reason) => api.put(`/admin/users/${userId}/ban`, { reason }),
+  unbanUser: (userId) => api.put(`/admin/users/${userId}/unban`),
   suspendGroup: (groupId, reason) => api.put(`/groupchat/groups/${groupId}/suspend`, { reason }),
   unsuspendGroup: (groupId) => api.put(`/groupchat/groups/${groupId}/unsuspend`),
 };
@@ -123,10 +126,14 @@ export const lfApi = {
     api.post(`/lostfound/messages/${messageId}/reactions`, { emoji }),
   // Message requests
   getIncomingMessageRequests: () => api.get('/lostfound/message-requests/incoming'),
-  respondToMessageRequest: (id, accepted) => 
+  respondToMessageRequest: (id, accepted) =>
     api.post(`/lostfound/message-requests/${id}/respond`, { accepted }),
   endConversation: (conversationId) =>
     api.post(`/lostfound/conversations/${conversationId}/end`),
+  // Saved items
+  getSaved: () => api.get('/lostfound/saved'),
+  saveItem: (id) => api.post(`/lostfound/saved/${id}`),
+  unsaveItem: (id) => api.delete(`/lostfound/saved/${id}`),
 };
 
 // Group Chat
@@ -195,6 +202,24 @@ export const gcApi = {
   signalCall: (groupId)                  => api.post(`/groupchat/groups/${groupId}/call`),
   endCallSignal: (groupId)               => api.delete(`/groupchat/groups/${groupId}/call`),
   getIncomingCalls: ()                   => api.get('/groupchat/groups/calls'),
+};
+
+// Notifications
+export const notifApi = {
+  getAll: () => api.get('/notifications'),
+  readAll: () => api.put('/notifications/read-all'),
+  readOne: (id) => api.put(`/notifications/${id}/read`),
+  dismiss: (id) => api.delete(`/notifications/${id}`),
+};
+
+// Global search
+export const searchApi = {
+  search: (q) => api.get('/auth/search', { params: { q } }),
+};
+
+// Online status
+export const presenceApi = {
+  getOnlineStatus: (emails) => api.get('/auth/online-status', { params: { emails: emails.join(',') } }),
 };
 
 export default api;

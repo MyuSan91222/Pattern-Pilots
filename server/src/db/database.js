@@ -184,6 +184,8 @@ function initSchema() {
   addColumnIfMissing('users', 'social_links', 'TEXT');
   addColumnIfMissing('users', 'preferences', 'TEXT');
   addColumnIfMissing('users', 'updated_at', 'TEXT DEFAULT (datetime("now"))');
+  addColumnIfMissing('users', 'banned_at', 'TEXT');
+  addColumnIfMissing('users', 'banned_reason', 'TEXT');
 
   // Check if activity_log needs migration
   try {

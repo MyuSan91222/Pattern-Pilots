@@ -82,6 +82,14 @@ export const adminApi = {
   // User message request handling (admin side)
   acceptUserRequest: (id: string | number) => api.put(`/auth/user-requests/${id}/accept`),
   rejectUserRequest: (id: string | number) => api.put(`/auth/user-requests/${id}/reject`),
+  // Ban management
+  banUser: (userId: number, reason?: string) => api.put(`/admin/users/${userId}/ban`, { reason }),
+  unbanUser: (userId: number) => api.put(`/admin/users/${userId}/unban`),
+  // Messages
+  getMessages: (params?: { page?: number; search?: string }) => api.get('/admin/messages', { params }),
+  deleteConversation: (conversationId: number) => api.delete(`/admin/conversations/${conversationId}`),
+  sendMessageRequest: (user_email: string, message?: string) => api.post('/admin/message-requests', { user_email, message }),
+  deleteMessageRequest: (id: number | string) => api.delete(`/admin/message-requests/${id}`),
   // Group management (admin)
   getGroups: (params?: { page?: number; search?: string }) => api.get('/admin/groups', { params }),
   suspendGroup: (groupId: number, reason: string) => api.put(`/groupchat/groups/${groupId}/suspend`, { reason }),
