@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import crypto from 'crypto';
-import { getDb, getUserActivityStats, getAttendanceHistory } from '../db/database.js';
+import { getDb, getUserActivityStats, getAttendanceHistory, insertNotification } from '../db/database.js';
 import { requireAdmin } from '../middleware/auth.js';
 
 const ENCRYPTION_KEY = process.env.LF_ENCRYPTION_KEY
@@ -398,6 +398,13 @@ router.put('/message-requests/:id/accept', (req, res) => {
       console.error('[Admin] Error creating auto-message:', msgErr);
     }
 
+    // Notify the user their request was accepted
+    insertNotification(db, request.user_email, 'request_accepted',
+      'Message request accepted',
+      `An admin has accepted your message request. You can now chat with them.`,
+      '/messages'
+    );
+
     res.json({ success: true, message: 'Request accepted', user_email: request.user_email, conversationId: convId });
   } catch (error) {
     console.error('Error accepting request:', error);
@@ -428,6 +435,13 @@ router.put('/message-requests/:id/reject', (req, res) => {
       SET status = 'rejected', responded_at = datetime('now')
       WHERE id = ?
     `).run(req.params.id);
+
+    // Notify the user their request was rejected
+    insertNotification(db, request.user_email, 'request_rejected',
+      'Message request declined',
+      `Your message request to an admin was declined.`,
+      '/profile'
+    );
 
     res.json({ success: true, message: 'Request rejected' });
   } catch (error) {

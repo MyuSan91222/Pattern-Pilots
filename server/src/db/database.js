@@ -604,6 +604,28 @@ function initSchema() {
       UNIQUE(group_id),
       FOREIGN KEY(group_id) REFERENCES gc_groups(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS notifications (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_email TEXT NOT NULL,
+      type TEXT NOT NULL,
+      title TEXT NOT NULL,
+      body TEXT NOT NULL,
+      link TEXT,
+      is_read INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_email, is_read);
+
+    CREATE TABLE IF NOT EXISTS lf_saved_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_email TEXT NOT NULL,
+      item_id INTEGER NOT NULL,
+      saved_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(user_email, item_id),
+      FOREIGN KEY(item_id) REFERENCES lf_items(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_lf_saved_items_user ON lf_saved_items(user_email);
   `);
 
   // Migrate gc_groups table to add suspension columns if needed
@@ -617,4 +639,17 @@ function initSchema() {
 
   // Add sender_type to admin_message_requests if missing (distinguish between admin and user initiated)
   addColumnIfMissing('admin_message_requests', 'sender_type', "TEXT DEFAULT 'user'");
+
+  // Online status tracking
+  addColumnIfMissing('users', 'last_seen', 'TEXT');
+}
+
+export function insertNotification(db, userEmail, type, title, body, link = null) {
+  try {
+    db.prepare(
+      `INSERT INTO notifications (user_email, type, title, body, link) VALUES (?, ?, ?, ?, ?)`
+    ).run(userEmail, type, title, body, link);
+  } catch {
+    // Never let notification errors break the main operation
+  }
 }

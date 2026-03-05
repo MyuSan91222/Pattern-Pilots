@@ -72,7 +72,7 @@ export const authApi = {
 
 // Admin
 export const adminApi = {
-  getUsers: (params?: { page?: number; search?: string }) => api.get('/admin/users', { params }),
+  getUsers: (params?: { page?: number; search?: string; limit?: number }) => api.get('/admin/users', { params }),
   getActivity: (params?: { page?: number; email?: string }) => api.get('/admin/activity', { params }),
   getAttendance: (params?: { page?: number; user_id?: string }) => api.get('/admin/attendance', { params }),
   getUserStats: (userId: string | number) => api.get(`/admin/users/${userId}/stats`),

@@ -34,7 +34,7 @@ export default function AdminPage() {
   const fetchUsers = async () => {
     setIsLoading(true);
     try {
-      const { data } = await adminApi.getUsers({ page, search });
+      const { data } = await adminApi.getUsers({ page, search, limit: 100 });
       setUsers(data.users);
       setTotal(data.total);
     } catch { toast.error('Failed to load users'); }
@@ -284,76 +284,106 @@ export default function AdminPage() {
 
       {/* Users Table */}
       {tab === 'users' && (
-        <div className="card overflow-hidden animate-in fade-in slide-in-from-bottom duration-700 bg-white border border-gray-200 rounded-xl" style={{animationDelay: '300ms'}}>
-          {/* Header summary */}
-          <div className="px-4 py-3 border-b border-gray-300 flex items-center justify-between bg-white hover:bg-gray-50 transition-all">
-            <div className="flex items-center gap-2 group">
-              <User size={14} className="text-blue-600 transition-all group-hover:scale-110 group-hover:rotate-12" />
-              <span className="text-xs text-gray-700 font-semibold transition-all group-hover:text-gray-900 tracking-wider" style={{ fontFamily: 'Syne', letterSpacing: '0.1em' }}>
-                ALL REGISTERED ACCOUNTS
+        <>
+          <div className="card overflow-hidden animate-in fade-in slide-in-from-bottom duration-700 bg-white border border-gray-200 rounded-xl" style={{animationDelay: '300ms'}}>
+            {/* Header summary */}
+            <div className="px-4 py-3 border-b border-gray-300 flex items-center justify-between bg-white hover:bg-gray-50 transition-all">
+              <div className="flex items-center gap-2 group">
+                <User size={14} className="text-blue-600 transition-all group-hover:scale-110 group-hover:rotate-12" />
+                <span className="text-xs text-gray-700 font-semibold transition-all group-hover:text-gray-900 tracking-wider" style={{ fontFamily: 'Syne', letterSpacing: '0.1em' }}>
+                  ALL REGISTERED ACCOUNTS
+                </span>
+              </div>
+              <span className="text-xs font-mono text-blue-700 font-bold px-3 py-1 rounded-full bg-blue-100 border border-blue-300">
+                {total} total
               </span>
             </div>
-            <span className="text-xs font-mono text-blue-700 font-bold px-3 py-1 rounded-full bg-blue-100 border border-blue-300">
-              {total} total
-            </span>
-          </div>
 
-          <table className="w-full">
-            <thead className="border-b border-gray-300 bg-white">
-              <tr>
-                {['#', 'Email', 'Role', 'Verified', 'Activities', 'Registered', 'Last Login', 'Actions'].map(h => (
-                  <th key={h} className="py-3 px-4 text-left text-xs font-medium text-gray-700 border-r border-gray-300"
-                    style={{ fontFamily: 'Syne', letterSpacing: '0.05em' }}>{h.toUpperCase()}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr><td colSpan={8} className="py-12 text-center text-gray-600 text-sm">Loading...</td></tr>
-              ) : users.map((user, i) => (
-                <tr key={user.email} className="border-b border-gray-200 hover:bg-gray-50 transition-all">
-                  <td className="py-3 px-4 text-xs text-gray-600 font-mono w-10 border-r border-gray-200">
-                    {(page - 1) * 20 + i + 1}
-                  </td>
-                  <td className="py-3 px-4 text-sm text-gray-900 border-r border-gray-200">{user.email}</td>
-                  <td className="py-3 px-4 border-r border-gray-200">
-                    <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full transition-all ${
-                      user.role === 'admin' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
-                    }`}>
-                      {user.role === 'admin' ? <Shield size={10} /> : <User size={10} />}
-                      {user.role}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 border-r border-gray-200">
-                    <span className={`text-xs ${user.verified ? 'text-green-600' : 'text-amber-600'}`}>
-                      {user.verified ? '✓ Verified' : '⏳ Pending'}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 text-xs text-gray-700 font-mono font-bold border-r border-gray-200">
-                    {user.activity_count || 0}
-                  </td>
-                  <td className="py-3 px-4 text-xs text-gray-600 font-mono whitespace-nowrap border-r border-gray-200">
-                    {new Date(user.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
-                  </td>
-                  <td className="py-3 px-4 text-xs font-mono whitespace-nowrap border-r border-gray-200">
-                    {user.last_login
-                      ? <span className="text-gray-600">{new Date(user.last_login).toLocaleString()}</span>
-                      : <span className="text-gray-400">Never</span>}
-                  </td>
-                  <td className="py-3 px-4">
-                    <button onClick={() => handleRoleToggle(user.email, user.role)}
-                      className="text-xs text-blue-600 hover:text-blue-800 transition-all hover:font-semibold px-2 py-1 rounded hover:bg-blue-50">
-                      Toggle Role
-                    </button>
-                  </td>
+            <table className="w-full">
+              <thead className="border-b border-gray-300 bg-white">
+                <tr>
+                  {['#', 'Email', 'Role', 'Verified', 'Activities', 'Registered', 'Last Login', 'Actions'].map(h => (
+                    <th key={h} className="py-3 px-4 text-left text-xs font-medium text-gray-700 border-r border-gray-300"
+                      style={{ fontFamily: 'Syne', letterSpacing: '0.05em' }}>{h.toUpperCase()}</th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          {!isLoading && users.length === 0 && (
-            <div className="py-12 text-center text-ink-600 text-sm">No users found</div>
+              </thead>
+              <tbody>
+                {isLoading ? (
+                  <tr><td colSpan={8} className="py-12 text-center text-gray-600 text-sm">Loading...</td></tr>
+                ) : users.map((user, i) => (
+                  <tr key={user.email} className="border-b border-gray-200 hover:bg-gray-50 transition-all">
+                    <td className="py-3 px-4 text-xs text-gray-600 font-mono w-10 border-r border-gray-200">
+                      {(page - 1) * 100 + i + 1}
+                    </td>
+                    <td className="py-3 px-4 text-sm text-gray-900 border-r border-gray-200">{user.email}</td>
+                    <td className="py-3 px-4 border-r border-gray-200">
+                      <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full transition-all ${
+                        user.role === 'admin' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
+                      }`}>
+                        {user.role === 'admin' ? <Shield size={10} /> : <User size={10} />}
+                        {user.role}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 border-r border-gray-200">
+                      <span className={`text-xs ${user.verified ? 'text-green-600' : 'text-amber-600'}`}>
+                        {user.verified ? '✓ Verified' : '⏳ Pending'}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 text-xs text-gray-700 font-mono font-bold border-r border-gray-200">
+                      {user.activity_count || 0}
+                    </td>
+                    <td className="py-3 px-4 text-xs text-gray-600 font-mono whitespace-nowrap border-r border-gray-200">
+                      {new Date(user.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                    </td>
+                    <td className="py-3 px-4 text-xs font-mono whitespace-nowrap border-r border-gray-200">
+                      {user.last_login
+                        ? <span className="text-gray-600">{new Date(user.last_login).toLocaleString()}</span>
+                        : <span className="text-gray-400">Never</span>}
+                    </td>
+                    <td className="py-3 px-4">
+                      <button onClick={() => handleRoleToggle(user.email, user.role)}
+                        className="text-xs text-blue-600 hover:text-blue-800 transition-all hover:font-semibold px-2 py-1 rounded hover:bg-blue-50">
+                        Toggle Role
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {!isLoading && users.length === 0 && (
+              <div className="py-12 text-center text-ink-600 text-sm">No users found</div>
+            )}
+          </div>
+          
+          {/* Pagination for Users */}
+          {total > 100 && (
+            <div className="flex justify-between items-center gap-4 mt-6 px-4 py-4 bg-white rounded-lg border border-gray-200">
+              <div className="text-xs text-gray-700 font-semibold tracking-wide">
+                Showing {Math.min((page - 1) * 100 + 1, total)} - {Math.min(page * 100, total)} of {total} users
+              </div>
+              <div className="flex gap-2">
+                <button 
+                  disabled={page <= 1} 
+                  onClick={() => setPage(p => p - 1)} 
+                  className="btn-ghost px-4 py-2 text-xs disabled:opacity-30 transition-all hover:scale-105"
+                >
+                  ← Previous
+                </button>
+                <span className="px-4 py-2 text-xs text-blue-700 font-bold bg-blue-100 rounded-md">
+                  Page {page} of {Math.ceil(total / 100)}
+                </span>
+                <button 
+                  disabled={page * 100 >= total} 
+                  onClick={() => setPage(p => p + 1)} 
+                  className="btn-ghost px-4 py-2 text-xs disabled:opacity-30 transition-all hover:scale-105"
+                >
+                  Next →
+                </button>
+              </div>
+            </div>
           )}
-        </div>
+        </>
       )}
 
       {/* Activity Table */}

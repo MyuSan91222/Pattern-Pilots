@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import crypto from 'crypto';
-import { getDb } from '../db/database.js';
+import { getDb, insertNotification } from '../db/database.js';
 import { requireAuth } from '../middleware/auth.js';
 import { join } from 'path';
 import { existsSync, mkdirSync, unlinkSync } from 'fs';
@@ -403,6 +403,16 @@ router.post('/conversations/:id/messages', requireAuth, uploadMessage.single('fi
     `).run(conv.id, req.user.email, messageEnc || null, iv || null, authTag || null, file ? `/uploads/${file.filename}` : null, file ? file.originalname : null);
 
     const saved = db.prepare('SELECT * FROM lf_messages WHERE id = ?').get(r.lastInsertRowid);
+
+    // Notify the other participant
+    const recipientEmail = conv.item_owner_email === req.user.email ? conv.inquirer_email : conv.item_owner_email;
+    const senderName = req.user.email.split('@')[0];
+    insertNotification(db, recipientEmail, 'new_message',
+      `New message from ${senderName}`,
+      messageText ? (messageText.length > 60 ? messageText.slice(0, 60) + '…' : messageText) : '📎 Sent a file',
+      '/messages'
+    );
+
     res.status(201).json({
       message: {
         id: saved.id,
@@ -591,6 +601,21 @@ router.post('/message-requests/:id/respond', requireAuth, (req, res) => {
         console.error('[LF] Error creating auto-message:', msgErr);
         // Don't fail the request if auto-message fails
       }
+    }
+
+    // Notify the admin of the user's response
+    if (accepted) {
+      insertNotification(db, request.admin_email, 'request_accepted',
+        'Message request accepted',
+        `${request.user_email.split('@')[0]} has accepted your message request.`,
+        '/messages'
+      );
+    } else {
+      insertNotification(db, request.admin_email, 'request_rejected',
+        'Message request declined',
+        `${request.user_email.split('@')[0]} declined your message request.`,
+        '/messages'
+      );
     }
 
     res.json({ success: true, message: `Request ${status}`, conversationId: convId });
