@@ -488,171 +488,172 @@ export default function ProfilePage() {
 
             {/* Send Message to Admin */}
             {user?.role !== 'admin' && (
-          <h2 className="text-lg font-semibold text-current mb-4 flex items-center gap-2" style={{ fontFamily: 'Syne' }}>
-            <MessageSquare size={18} className="text-accent" />
-            Contact an Admin
-          </h2>
-          <p className="text-sm text-current text-opacity-60 mb-4">Send a message request to an admin. They will receive your request and can respond to engage in conversation.</p>
+              <>
+                <h2 className="text-lg font-semibold text-current mb-4 flex items-center gap-2" style={{ fontFamily: 'Syne' }}>
+                  <MessageSquare size={18} className="text-accent" />
+                  Contact an Admin
+                </h2>
+                <p className="text-sm text-current text-opacity-60 mb-4">Send a message request to an admin. They will receive your request and can respond to engage in conversation.</p>
 
-          {admins.length > 0 ? (
-            <form onSubmit={handleSendRequest} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-current mb-2">Select Admin</label>
-                <select
-                  value={selectedAdmin}
-                  onChange={(e) => setSelectedAdmin(e.target.value)}
-                  className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-accent"
-                >
-                  <option value="">Choose an admin...</option>
-                  {admins.map((admin) => (
-                    <option key={admin.email} value={admin.email}>
-                      {admin.email}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                {admins.length > 0 ? (
+                  <form onSubmit={handleSendRequest} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-current mb-2">Select Admin</label>
+                      <select
+                        value={selectedAdmin}
+                        onChange={(e) => setSelectedAdmin(e.target.value)}
+                        className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-accent"
+                      >
+                        <option value="">Choose an admin...</option>
+                        {admins.map((admin) => (
+                          <option key={admin.email} value={admin.email}>
+                            {admin.email}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
-              <div>
-                <label className="block text-sm font-medium text-current mb-2">Message (Optional)</label>
-                <textarea
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  placeholder="Add a message for the admin (e.g., reason for contacting, topic of interest)..."
-                  rows="4"
-                  maxLength="500"
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-accent resize-none"
-                />
-                <p className="text-xs text-current text-opacity-50 mt-1">{message.length}/500 characters</p>
-              </div>
+                    <div>
+                      <label className="block text-sm font-medium text-current mb-2">Message (Optional)</label>
+                      <textarea
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                        placeholder="Add a message for the admin (e.g., reason for contacting, topic of interest)..."
+                        rows="4"
+                        maxLength="500"
+                        className="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-accent resize-none"
+                      />
+                      <p className="text-xs text-current text-opacity-50 mt-1">{message.length}/500 characters</p>
+                    </div>
 
-              <button
-                type="submit"
-                disabled={sending || !selectedAdmin}
-                className="w-full px-4 py-2 bg-accent text-white rounded-lg font-medium hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
-              >
-                {sending ? (
-                  <>
-                    <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                    Sending...
-                  </>
+                    <button
+                      type="submit"
+                      disabled={sending || !selectedAdmin}
+                      className="w-full px-4 py-2 bg-accent text-white rounded-lg font-medium hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+                    >
+                      {sending ? (
+                        <>
+                          <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <Send size={16} />
+                          Send Request
+                        </>
+                      )}
+                    </button>
+                  </form>
                 ) : (
-                  <>
-                    <Send size={16} />
-                    Send Request
-                  </>
+                  <div className="p-4 bg-red-50 rounded-lg border border-red-200 text-center">
+                    <p className="text-sm text-red-700">No admins available at the moment.</p>
+                  </div>
                 )}
-              </button>
-            </form>
-          ) : (
-            <div className="p-4 bg-red-50 rounded-lg border border-red-200 text-center">
-              <p className="text-sm text-red-700">No admins available at the moment.</p>
-            </div>
-          )}
-        </div>
-        )}
+              </>
+            )}
 
-        {/* Message Requests / Incoming Requests for Admins */}
-        <div className="card p-6 animate-in fade-in slide-in-from-bottom-4" style={{ animationDelay: '300ms' }}>
-          <h2 className="text-lg font-semibold text-current mb-4 flex items-center gap-2" style={{ fontFamily: 'Syne' }}>
-            <Mail size={18} className="text-accent" />
-            My Message Requests
-          </h2>
+            {/* Message Requests / Incoming Requests for Admins */}
+            <div className="card p-6 animate-in fade-in slide-in-from-bottom-4" style={{ animationDelay: '300ms' }}>
+              <h2 className="text-lg font-semibold text-current mb-4 flex items-center gap-2" style={{ fontFamily: 'Syne' }}>
+                <Mail size={18} className="text-accent" />
+                My Message Requests
+              </h2>
 
-          {isLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="w-6 h-6 rounded-full border-2 border-accent border-t-transparent animate-spin" />
-            </div>
-          ) : requests.length > 0 ? (
-            <div className="space-y-6">
-              {/* Outgoing Requests to Admins */}
-              {requests.filter(r => r.type === 'outgoing').length > 0 && (
-                <div>
-                  <h3 className="text-sm font-semibold text-current mb-3 opacity-75">Sent to Admins</h3>
-                  <div className="space-y-3">
-                    {requests.filter(r => r.type === 'outgoing').map((req) => (
-                      <div key={req.id} className="p-4 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 transition-colors">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-2">
-                              <p className="font-medium text-gray-900">{req.other_email || req.admin_email}</p>
-                              {getStatusBadge(req.status)}
+              {isLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="w-6 h-6 rounded-full border-2 border-accent border-t-transparent animate-spin" />
+                </div>
+              ) : requests.length > 0 ? (
+                <div className="space-y-6">
+                  {/* Outgoing Requests to Admins */}
+                  {requests.filter(r => r.type === 'outgoing').length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-current mb-3 opacity-75">Sent to Admins</h3>
+                      <div className="space-y-3">
+                        {requests.filter(r => r.type === 'outgoing').map((req) => (
+                          <div key={req.id} className="p-4 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 transition-colors">
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <p className="font-medium text-gray-900">{req.other_email || req.admin_email}</p>
+                                  {getStatusBadge(req.status)}
+                                </div>
+                                {req.message && (
+                                  <p className="text-sm text-gray-700 mb-2 break-words">"{req.message}"</p>
+                                )}
+                                <p className="text-xs text-gray-500">
+                                  Sent {formatDate(req.created_at)}
+                                  {req.responded_at && ` • Responded ${formatDate(req.responded_at)}`}
+                                </p>
+                              </div>
+
+                              {req.status === 'pending' && (
+                                <button
+                                  onClick={() => handleCancelRequest(req.id)}
+                                  className="flex-shrink-0 p-2 hover:bg-current hover:bg-opacity-10 rounded-lg transition-colors text-red-500 hover:text-red-600"
+                                  title="Cancel request"
+                                >
+                                  <X size={18} />
+                                </button>
+                              )}
                             </div>
-                            {req.message && (
-                              <p className="text-sm text-gray-700 mb-2 break-words">"{req.message}"</p>
-                            )}
-                            <p className="text-xs text-gray-500">
-                              Sent {formatDate(req.created_at)}
-                              {req.responded_at && ` • Responded ${formatDate(req.responded_at)}`}
-                            </p>
                           </div>
-
-                          {req.status === 'pending' && (
-                            <button
-                              onClick={() => handleCancelRequest(req.id)}
-                              className="flex-shrink-0 p-2 hover:bg-current hover:bg-opacity-10 rounded-lg transition-colors text-red-500 hover:text-red-600"
-                              title="Cancel request"
-                            >
-                              <X size={18} />
-                            </button>
-                          )}
-                        </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  )}
+
+                  {/* Incoming Requests from Admins */}
+                  {requests.filter(r => r.type === 'incoming').length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-current mb-3 opacity-75 text-green-600">From Admins</h3>
+                      <div className="space-y-3">
+                        {requests.filter(r => r.type === 'incoming').map((req) => (
+                          <div key={req.id} className="p-4 border border-green-300 rounded-lg bg-green-50 hover:bg-green-100 transition-colors">
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <p className="font-medium text-gray-900">{req.other_email || req.admin_email}</p>
+                                  {getStatusBadge(req.status)}
+                                </div>
+                                {req.message && (
+                                  <p className="text-sm text-gray-700 mb-2 break-words">"{req.message}"</p>
+                                )}
+                                <p className="text-xs text-gray-500">
+                                  Sent {formatDate(req.created_at)}
+                                  {req.responded_at && ` • Responded ${formatDate(req.responded_at)}`}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="p-8 text-center">
+                  <Mail size={32} className="mx-auto text-current text-opacity-30 mb-3" />
+                  <p className="text-current text-opacity-60">No message requests yet</p>
+                  <p className="text-sm text-current text-opacity-50 mt-1">Send your first request above or wait for admin requests!</p>
                 </div>
               )}
-
-              {/* Incoming Requests from Admins */}
-              {requests.filter(r => r.type === 'incoming').length > 0 && (
-                <div>
-                  <h3 className="text-sm font-semibold text-current mb-3 opacity-75 text-green-600">From Admins</h3>
-                  <div className="space-y-3">
-                    {requests.filter(r => r.type === 'incoming').map((req) => (
-                      <div key={req.id} className="p-4 border border-green-300 rounded-lg bg-green-50 hover:bg-green-100 transition-colors">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-2">
-                              <p className="font-medium text-gray-900">{req.other_email || req.admin_email}</p>
-                              {getStatusBadge(req.status)}
-                            </div>
-                            {req.message && (
-                              <p className="text-sm text-gray-700 mb-2 break-words">"{req.message}"</p>
-                            )}
-                            <p className="text-xs text-gray-500">
-                              Sent {formatDate(req.created_at)}
-                              {req.responded_at && ` • Responded ${formatDate(req.responded_at)}`}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
-          ) : (
-            <div className="p-8 text-center">
-              <Mail size={32} className="mx-auto text-current text-opacity-30 mb-3" />
-              <p className="text-current text-opacity-60">No message requests yet</p>
-              <p className="text-sm text-current text-opacity-50 mt-1">Send your first request above or wait for admin requests!</p>
-            </div>
-          )}
-        </div>
 
-        {/* How It Works */}
-        <div className="card p-6 bg-current bg-opacity-5 border border-current border-opacity-10 animate-in fade-in slide-in-from-bottom-4" style={{ animationDelay: '400ms' }}>
-          <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-            <AlertCircle size={16} className="text-accent" />
-            How It Works
-          </h3>
-          <ul className="space-y-2 text-sm text-white">
-            <li>✓ Select an admin and send a message request</li>
-            <li>✓ Your request appears in the admin's dashboard</li>
-            <li>✓ When accepted, an automatic message is sent to engage conversation</li>
-            <li>✓ You can track the status of your requests here</li>
-            <li>✓ Cancel pending requests anytime</li>
-          </ul>
-        </div>
+            {/* How It Works */}
+            <div className="card p-6 bg-current bg-opacity-5 border border-current border-opacity-10 animate-in fade-in slide-in-from-bottom-4" style={{ animationDelay: '400ms' }}>
+              <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                <AlertCircle size={16} className="text-accent" />
+                How It Works
+              </h3>
+              <ul className="space-y-2 text-sm text-white">
+                <li>✓ Select an admin and send a message request</li>
+                <li>✓ Your request appears in the admin's dashboard</li>
+                <li>✓ When accepted, an automatic message is sent to engage conversation</li>
+                <li>✓ You can track the status of your requests here</li>
+                <li>✓ Cancel pending requests anytime</li>
+              </ul>
+            </div>
           </div>
         )}
       </div>
