@@ -1166,6 +1166,18 @@ function BrowseView({ onSelectItem, initialCategory, initialSearch, serverItems 
           />
         </div>
         <div className="flex items-center gap-1.5 pr-1 flex-shrink-0">
+          {user && (
+            <button onClick={() => setShowSaved(v => !v)}
+              className={`flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl border transition-all duration-200 ${
+                showSaved
+                  ? 'border-accent text-accent bg-accent/10 shadow-sm shadow-accent/20'
+                  : 'border-ink-700 text-ink-400 hover:border-ink-600 hover:text-ink-300'
+              }`}>
+              <Bookmark size={12} />
+              Saved
+              {savedIds.size > 0 && <span className="text-[10px] font-bold">{savedIds.size}</span>}
+            </button>
+          )}
           <button onClick={() => setShowFilters(v => !v)}
             className={`flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl border transition-all duration-200 ${
               showFilters || hasFilters
@@ -1236,25 +1248,62 @@ function BrowseView({ onSelectItem, initialCategory, initialSearch, serverItems 
 
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-bold text-ink-200" style={{ fontFamily: 'Syne' }}>{filtered.length}</span>
-          <span className="text-xs text-ink-600">items found</span>
-          {serverItems.length > 0 && (
-            <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-accent/10 border border-accent/20 text-accent font-semibold">
-              <span className="w-1 h-1 rounded-full bg-accent animate-pulse" />{serverItems.length} live
-            </span>
+          {showSaved ? (
+            <>
+              <span className="text-sm font-bold text-ink-200" style={{ fontFamily: 'Syne' }}>{savedItems.length}</span>
+              <span className="text-xs text-ink-600">saved items</span>
+            </>
+          ) : (
+            <>
+              <span className="text-sm font-bold text-ink-200" style={{ fontFamily: 'Syne' }}>{filtered.length}</span>
+              <span className="text-xs text-ink-600">items found</span>
+              {serverItems.length > 0 && (
+                <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-accent/10 border border-accent/20 text-accent font-semibold">
+                  <span className="w-1 h-1 rounded-full bg-accent animate-pulse" />{serverItems.length} live
+                </span>
+              )}
+            </>
           )}
         </div>
-        {hasFilters && (
+        {!showSaved && hasFilters && (
           <button onClick={clearFilters} className="flex items-center gap-1 text-xs text-ink-500 hover:text-accent transition-colors">
             <X size={11} />Clear filters
           </button>
         )}
       </div>
 
-      {filtered.length > 0 ? (
+      {showSaved ? (
+        savedItems.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {savedItems.map(item => (
+              <ItemCard
+                key={item.id}
+                item={item}
+                onClick={onSelectItem}
+                isSaved={true}
+                onToggleSave={handleToggleSave}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="py-16 text-center text-ink-600">
+            <Bookmark size={40} className="mx-auto mb-3 opacity-30" />
+            <p className="font-medium" style={{ fontFamily: 'Syne' }}>No saved items yet</p>
+            <p className="text-sm mt-1">Tap the bookmark icon on any item to save it for later</p>
+          </div>
+        )
+      ) : filtered.length > 0 ? (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {displayedItems.map(item => <ItemCard key={item.id} item={item} onClick={onSelectItem} />)}
+            {displayedItems.map(item => (
+              <ItemCard
+                key={item.id}
+                item={item}
+                onClick={onSelectItem}
+                isSaved={savedIds.has(Number(item.serverId || item.id))}
+                onToggleSave={user ? handleToggleSave : undefined}
+              />
+            ))}
           </div>
           {hasMore && (
             <div className="mt-6 text-center">
