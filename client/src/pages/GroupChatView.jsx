@@ -1385,6 +1385,7 @@ export default function GroupChatView({ currentUser }) {
   const [showJoinLink, setShowJoinLink] = useState(false);
   const [showDiscover, setShowDiscover] = useState(false);
   const [showVideoCall, setShowVideoCall] = useState(false);
+  const [pendingVideoCall, setPendingVideoCall] = useState(false);
   const [incomingCall, setIncomingCall] = useState(null);
 
   // Suspension modals (for group founder)
@@ -1475,6 +1476,14 @@ export default function GroupChatView({ currentUser }) {
       setLoadingMsgs(false);
     }
   }, [activeGroupId]);
+
+  // ── Open video call once activeGroup loads (for incoming call accept) ────────
+  useEffect(() => {
+    if (pendingVideoCall && activeGroup) {
+      setShowVideoCall(true);
+      setPendingVideoCall(false);
+    }
+  }, [pendingVideoCall, activeGroup]);
 
   // ── Auto-scroll to bottom ────────────────────────────────────────────────────
   useEffect(() => {
@@ -2285,8 +2294,12 @@ export default function GroupChatView({ currentUser }) {
           call={incomingCall}
           onAccept={() => {
             setIncomingCall(null);
-            setActiveGroupId(incomingCall.group_id);
-            setShowVideoCall(true);
+            if (activeGroup && activeGroup.id === incomingCall.group_id) {
+              setShowVideoCall(true);
+            } else {
+              setPendingVideoCall(true);
+              setActiveGroupId(incomingCall.group_id);
+            }
           }}
           onDecline={() => setIncomingCall(null)}
         />

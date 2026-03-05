@@ -1089,7 +1089,7 @@ router.get('/groups/calls', requireAuth, (req, res) => {
     const db = getDb();
     const calls = db.prepare(`
       SELECT cs.group_id, cs.caller_email, cs.started_at,
-             g.name AS group_name, g.avatar_color
+             g.name AS group_name, g.avatar_color, g.invite_token
       FROM gc_call_signals cs
       JOIN gc_groups g ON g.id = cs.group_id
       JOIN gc_members m ON m.group_id = cs.group_id AND m.user_email = ?
