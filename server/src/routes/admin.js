@@ -1,6 +1,11 @@
 import { Router } from 'express';
+import crypto from 'crypto';
 import { getDb, getUserActivityStats, getAttendanceHistory } from '../db/database.js';
 import { requireAdmin } from '../middleware/auth.js';
+
+const ENCRYPTION_KEY = process.env.LF_ENCRYPTION_KEY
+  ? Buffer.from(process.env.LF_ENCRYPTION_KEY, 'hex')
+  : crypto.scryptSync('pattern-pilots-lf-2024', 'pp-static-salt-v1', 32);
 
 const router = Router();
 router.use(requireAdmin);
@@ -354,11 +359,46 @@ router.put('/message-requests/:id/accept', (req, res) => {
 
     // Log activity for admin
     logActivity(admin_email, 'accepted_request', `Accepted request from ${request.user_email}`);
-    
+
     // Log activity for user so they see the acceptance notification
     logActivity(request.user_email, 'request_accepted', `Your message request to admin was accepted`);
 
-    res.json({ success: true, message: 'Request accepted', user_email: request.user_email });
+    // Create conversation and send auto-message
+    let convId = null;
+    try {
+      const autoMessage = 'Hello! Your message request has been accepted. Feel free to start the conversation — I\'m here to help.';
+
+      const existingConv = db.prepare(`
+        SELECT id FROM lf_conversations
+        WHERE (item_owner_email = ? AND inquirer_email = ?)
+        OR (item_owner_email = ? AND inquirer_email = ?)
+      `).get(admin_email, request.user_email, request.user_email, admin_email);
+
+      if (existingConv) {
+        convId = existingConv.id;
+      } else {
+        const conv = db.prepare(`
+          INSERT INTO lf_conversations (item_id, item_owner_email, inquirer_email)
+          VALUES (0, ?, ?)
+        `).run(admin_email, request.user_email);
+        convId = conv.lastInsertRowid;
+      }
+
+      const iv = crypto.randomBytes(12);
+      const cipher = crypto.createCipheriv('aes-256-gcm', ENCRYPTION_KEY, iv);
+      let enc = cipher.update(autoMessage, 'utf8', 'hex');
+      enc += cipher.final('hex');
+      const authTag = cipher.getAuthTag().toString('hex');
+
+      db.prepare(`
+        INSERT INTO lf_messages (conversation_id, sender_email, message_enc, iv, auth_tag)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(convId, admin_email, enc, iv.toString('hex'), authTag);
+    } catch (msgErr) {
+      console.error('[Admin] Error creating auto-message:', msgErr);
+    }
+
+    res.json({ success: true, message: 'Request accepted', user_email: request.user_email, conversationId: convId });
   } catch (error) {
     console.error('Error accepting request:', error);
     res.status(500).json({ error: 'Failed to accept request' });

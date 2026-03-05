@@ -571,6 +571,15 @@ function initSchema() {
 
     CREATE INDEX IF NOT EXISTS idx_gc_appeals_group ON gc_suspension_appeals(group_id);
     CREATE INDEX IF NOT EXISTS idx_gc_appeals_status ON gc_suspension_appeals(status);
+
+    CREATE TABLE IF NOT EXISTS gc_call_signals (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      group_id INTEGER NOT NULL,
+      caller_email TEXT NOT NULL,
+      started_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(group_id),
+      FOREIGN KEY(group_id) REFERENCES gc_groups(id) ON DELETE CASCADE
+    );
   `);
 
   // Migrate gc_groups table to add suspension columns if needed

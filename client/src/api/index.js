@@ -188,6 +188,10 @@ export const gcApi = {
   // Admin: list pending appeals + review
   getAdminAppeals: ()                    => api.get('/groupchat/groups/appeals'),
   reviewAppeal: (appealId, action, admin_note) => api.put(`/groupchat/groups/appeals/${appealId}`, { action, admin_note }),
+  // Video call signals
+  signalCall: (groupId)                  => api.post(`/groupchat/groups/${groupId}/call`),
+  endCallSignal: (groupId)               => api.delete(`/groupchat/groups/${groupId}/call`),
+  getIncomingCalls: ()                   => api.get('/groupchat/groups/calls'),
 };
 
 export default api;

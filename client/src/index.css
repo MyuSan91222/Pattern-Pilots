@@ -32,6 +32,18 @@
   ::-webkit-scrollbar-track { @apply bg-ink-900; }
   ::-webkit-scrollbar-thumb { @apply bg-ink-600 rounded-full; }
   ::-webkit-scrollbar-thumb:hover { @apply bg-ink-500; }
+
+  /* Disable browser autofill yellow background */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px rgb(17 24 39) inset !important;
+    box-shadow: 0 0 0 30px rgb(17 24 39) inset !important;
+  }
+  input:-webkit-autofill {
+    -webkit-text-fill-color: rgb(226 232 240) !important;
+  }
 }
 
 @layer components {

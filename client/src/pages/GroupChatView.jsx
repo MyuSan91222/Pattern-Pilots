@@ -555,7 +555,7 @@ function DiscoverPanel({ currentUser, onClose, onJoined }) {
         {results.map(g => (
           <div key={g.id} className="flex items-center gap-2.5 px-3 py-2.5 hover:bg-ink-800/50 transition-all">
             <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-white text-sm flex-shrink-0"
+              className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white text-sm flex-shrink-0"
               style={{ background: g.avatar_color || '#1e3a6e' }}
             >
               {g.name[0].toUpperCase()}
@@ -578,6 +578,76 @@ function DiscoverPanel({ currentUser, onClose, onJoined }) {
   );
 }
 
+// ── Incoming Call Notification ─────────────────────────────────────────────────
+function IncomingCallModal({ call, onAccept, onDecline }) {
+  const [secondsLeft, setSecondsLeft] = useState(30);
+
+  useEffect(() => {
+    if (secondsLeft <= 0) { onDecline(); return; }
+    const t = setTimeout(() => setSecondsLeft(s => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [secondsLeft, onDecline]);
+
+  const callerName = call.caller_email.split('@')[0];
+  const circumference = 2 * Math.PI * 20;
+  const dashOffset = circumference * (1 - secondsLeft / 30);
+
+  return (
+    <div className="fixed bottom-6 right-6 z-[60] w-80 rounded-2xl bg-ink-900 border border-ink-700 shadow-2xl overflow-hidden">
+      <div className="p-4">
+        <div className="flex items-center gap-3 mb-4">
+          {/* Pulsing group avatar */}
+          <div className="relative flex-shrink-0">
+            <div
+              className="w-12 h-12 rounded-full flex items-center justify-center font-bold text-white text-base animate-pulse"
+              style={{ background: call.avatar_color || '#1e3a6e' }}
+            >
+              {call.group_name[0].toUpperCase()}
+            </div>
+            <div className="absolute inset-0 rounded-full border-2 border-green-400 animate-ping opacity-60" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-ink-100 truncate">{call.group_name}</p>
+            <p className="text-xs text-ink-400">Incoming video call</p>
+            <p className="text-[11px] text-ink-500 truncate">{callerName} is calling...</p>
+          </div>
+          {/* Countdown ring */}
+          <div className="ml-auto flex-shrink-0 relative w-10 h-10">
+            <svg className="w-10 h-10 -rotate-90" viewBox="0 0 44 44">
+              <circle cx="22" cy="22" r="20" fill="none" stroke="#2a2a3a" strokeWidth="3" />
+              <circle
+                cx="22" cy="22" r="20" fill="none"
+                stroke="#4ade80" strokeWidth="3"
+                strokeDasharray={circumference}
+                strokeDashoffset={dashOffset}
+                strokeLinecap="round"
+                style={{ transition: 'stroke-dashoffset 1s linear' }}
+              />
+            </svg>
+            <span className="absolute inset-0 flex items-center justify-center text-[11px] font-semibold text-ink-300">{secondsLeft}</span>
+          </div>
+        </div>
+        <div className="flex gap-3">
+          <button
+            onClick={onDecline}
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-red-500/15 border border-red-500/30 text-red-400 text-sm font-semibold hover:bg-red-500/25 transition-all"
+          >
+            <PhoneOff size={15} />
+            Decline
+          </button>
+          <button
+            onClick={onAccept}
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-green-500/15 border border-green-500/30 text-green-400 text-sm font-semibold hover:bg-green-500/25 transition-all"
+          >
+            <Video size={15} />
+            Accept
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Video Call Modal ───────────────────────────────────────────────────────────
 function VideoCallModal({ group, currentUser, onClose }) {
   // Build a stable, group-unique room name from ID + first 8 chars of invite token
@@ -593,7 +663,7 @@ function VideoCallModal({ group, currentUser, onClose }) {
       {/* Header bar */}
       <div className="flex items-center gap-3 px-5 py-3 bg-ink-950 border-b border-ink-800 flex-shrink-0">
         <div
-          className="w-7 h-7 rounded-lg flex items-center justify-center font-bold text-white text-xs flex-shrink-0"
+          className="w-7 h-7 rounded-full flex items-center justify-center font-bold text-white text-xs flex-shrink-0"
           style={{ background: group.avatar_color || '#1e3a6e' }}
         >
           {group.name[0].toUpperCase()}
@@ -1315,6 +1385,7 @@ export default function GroupChatView({ currentUser }) {
   const [showJoinLink, setShowJoinLink] = useState(false);
   const [showDiscover, setShowDiscover] = useState(false);
   const [showVideoCall, setShowVideoCall] = useState(false);
+  const [incomingCall, setIncomingCall] = useState(null);
 
   // Suspension modals (for group founder)
   const [suspendedGroupData, setSuspendedGroupData] = useState(null); // group object when suspended warning fires
@@ -1324,6 +1395,7 @@ export default function GroupChatView({ currentUser }) {
   const handleEndVideoCall = useCallback(async () => {
     setShowVideoCall(false);
     if (!activeGroupId) return;
+    try { await gcApi.endCallSignal(activeGroupId); } catch {}
     try {
       const { data } = await gcApi.sendMessage(activeGroupId, { text: '📹 Video call ended' });
       setMessages(prev => prev.find(m => m.id === data.message.id) ? prev : [...prev, data.message]);
@@ -1415,6 +1487,25 @@ export default function GroupChatView({ currentUser }) {
     const lastMsg = messages[messages.length - 1];
     gcApi.markRead(activeGroupId, lastMsg.id).catch(() => {});
   }, [activeGroupId, messages]);
+
+  // ── Poll for incoming video calls ────────────────────────────────────────────
+  useEffect(() => {
+    if (!currentUser) return;
+    const poll = async () => {
+      try {
+        const { data } = await gcApi.getIncomingCalls();
+        const calls = data.calls || [];
+        if (calls.length > 0) {
+          setIncomingCall(prev => prev ? prev : calls[0]);
+        } else {
+          setIncomingCall(null);
+        }
+      } catch {}
+    };
+    poll();
+    const interval = setInterval(poll, 3000);
+    return () => clearInterval(interval);
+  }, [currentUser]);
 
   // ── Poll messages, typing, read receipts ─────────────────────────────────────
   useEffect(() => {
@@ -1794,7 +1885,7 @@ export default function GroupChatView({ currentUser }) {
                   }`}
                 >
                   {/* Group avatar */}
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-white text-sm flex-shrink-0"
+                  <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white text-sm flex-shrink-0"
                     style={{ background: g.avatar_color || '#1e3a6e' }}>
                     {g.name[0].toUpperCase()}
                   </div>
@@ -1846,7 +1937,7 @@ export default function GroupChatView({ currentUser }) {
                 className="md:hidden p-1.5 rounded-lg hover:bg-ink-800 text-ink-400 hover:text-ink-200 transition-all flex-shrink-0">
                 <ChevronLeft size={16} />
               </button>
-              <div className="w-8 h-8 rounded-xl flex items-center justify-center font-bold text-white text-sm flex-shrink-0"
+              <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-white text-sm flex-shrink-0"
                 style={{ background: activeGroup?.avatar_color || '#1e3a6e' }}>
                 {activeGroup?.name?.[0]?.toUpperCase() ?? '#'}
               </div>
@@ -1863,7 +1954,10 @@ export default function GroupChatView({ currentUser }) {
               <div className="flex items-center gap-1">
                 {/* Video Call */}
                 <button
-                  onClick={() => setShowVideoCall(true)}
+                  onClick={async () => {
+                    setShowVideoCall(true);
+                    try { await gcApi.signalCall(activeGroupId); } catch {}
+                  }}
                   title="Start video call"
                   className="p-2 rounded-lg hover:bg-green-500/20 text-ink-400 hover:text-green-400 transition-all"
                 >
@@ -2182,6 +2276,19 @@ export default function GroupChatView({ currentUser }) {
             setShowSuspensionLearnMore(false);
             setSuspendedGroupData(null);
           }}
+        />
+      )}
+
+      {/* ── Incoming video call notification ── */}
+      {incomingCall && !showVideoCall && (
+        <IncomingCallModal
+          call={incomingCall}
+          onAccept={() => {
+            setIncomingCall(null);
+            setActiveGroupId(incomingCall.group_id);
+            setShowVideoCall(true);
+          }}
+          onDecline={() => setIncomingCall(null)}
         />
       )}
     </div>

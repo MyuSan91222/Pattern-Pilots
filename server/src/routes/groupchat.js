@@ -1047,4 +1047,60 @@ router.get('/users/all', requireAuth, (req, res) => {
   }
 });
 
+// ── Video Call Signals ────────────────────────────────────────────────────────
+
+// POST /api/groupchat/groups/:id/call — caller signals an active call in the group
+router.post('/groups/:id/call', requireAuth, (req, res) => {
+  try {
+    const db = getDb();
+    const role = getMemberRole(db, req.params.id, req.user.email);
+    if (!role) return res.status(403).json({ error: 'Not a member' });
+
+    db.prepare(`
+      INSERT INTO gc_call_signals (group_id, caller_email, started_at)
+      VALUES (?, ?, datetime('now'))
+      ON CONFLICT(group_id) DO UPDATE SET caller_email = excluded.caller_email, started_at = excluded.started_at
+    `).run(req.params.id, req.user.email);
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[GC] POST /groups/:id/call error:', err);
+    res.status(500).json({ error: 'Failed to signal call' });
+  }
+});
+
+// DELETE /api/groupchat/groups/:id/call — caller ends the call signal
+router.delete('/groups/:id/call', requireAuth, (req, res) => {
+  try {
+    const db = getDb();
+    db.prepare(`
+      DELETE FROM gc_call_signals WHERE group_id = ? AND caller_email = ?
+    `).run(req.params.id, req.user.email);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[GC] DELETE /groups/:id/call error:', err);
+    res.status(500).json({ error: 'Failed to end call signal' });
+  }
+});
+
+// GET /api/groupchat/groups/calls — get active incoming calls for current user (excludes own calls, stale >45s)
+router.get('/groups/calls', requireAuth, (req, res) => {
+  try {
+    const db = getDb();
+    const calls = db.prepare(`
+      SELECT cs.group_id, cs.caller_email, cs.started_at,
+             g.name AS group_name, g.avatar_color
+      FROM gc_call_signals cs
+      JOIN gc_groups g ON g.id = cs.group_id
+      JOIN gc_members m ON m.group_id = cs.group_id AND m.user_email = ?
+      WHERE cs.caller_email != ?
+        AND cs.started_at >= datetime('now', '-45 seconds')
+    `).all(req.user.email, req.user.email);
+    res.json({ calls });
+  } catch (err) {
+    console.error('[GC] GET /groups/calls error:', err);
+    res.status(500).json({ error: 'Failed to fetch calls' });
+  }
+});
+
 export default router;
