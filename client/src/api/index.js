@@ -72,6 +72,9 @@ export const authApi = {
   contactAdmin: (data) => api.post('/auth/contact-admin', data),
   getMessageRequests: () => api.get('/auth/message-requests'),
   cancelMessageRequest: (id) => api.delete(`/auth/message-requests/${id}`),
+  // User profile
+  getProfile: () => api.get('/auth/profile'),
+  updateProfile: (data) => api.put('/auth/profile', data),
 };
 
 // Admin

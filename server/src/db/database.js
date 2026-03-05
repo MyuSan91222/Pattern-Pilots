@@ -153,13 +153,37 @@ function initSchema() {
       created_at TEXT DEFAULT (datetime('now')),
       last_login TEXT,
       last_logout TEXT,
-      activity_count INTEGER DEFAULT 0
+      activity_count INTEGER DEFAULT 0,
+      first_name TEXT,
+      last_name TEXT,
+      nickname TEXT,
+      bio TEXT,
+      profile_pic TEXT,
+      profile_pic_url TEXT,
+      phone TEXT,
+      location TEXT,
+      website TEXT,
+      social_links TEXT,
+      preferences TEXT,
+      updated_at TEXT DEFAULT (datetime('now'))
     );
   `);
 
   // Ensure all users columns exist for older databases
   addColumnIfMissing('users', 'last_logout', 'TEXT');
   addColumnIfMissing('users', 'activity_count', 'INTEGER DEFAULT 0');
+  addColumnIfMissing('users', 'first_name', 'TEXT');
+  addColumnIfMissing('users', 'last_name', 'TEXT');
+  addColumnIfMissing('users', 'nickname', 'TEXT');
+  addColumnIfMissing('users', 'bio', 'TEXT');
+  addColumnIfMissing('users', 'profile_pic', 'TEXT');
+  addColumnIfMissing('users', 'profile_pic_url', 'TEXT');
+  addColumnIfMissing('users', 'phone', 'TEXT');
+  addColumnIfMissing('users', 'location', 'TEXT');
+  addColumnIfMissing('users', 'website', 'TEXT');
+  addColumnIfMissing('users', 'social_links', 'TEXT');
+  addColumnIfMissing('users', 'preferences', 'TEXT');
+  addColumnIfMissing('users', 'updated_at', 'TEXT DEFAULT (datetime("now"))');
 
   // Check if activity_log needs migration
   try {

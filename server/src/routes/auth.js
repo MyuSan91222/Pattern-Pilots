@@ -417,4 +417,78 @@ router.put('/user-requests/:id/reject', requireAuth, (req, res) => {
   }
 });
 
+// PUT /api/auth/profile - Update user profile
+router.put('/profile', requireAuth, async (req, res) => {
+  try {
+    const { email } = req.user;
+    const {
+      first_name, last_name, nickname, bio, phone, location, website, 
+      social_links, preferences, profile_pic_url
+    } = req.body;
+
+    const db = getDb();
+    const user = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    // Build update query dynamically with only provided fields
+    const updates = [];
+    const values = [];
+    const allowedFields = [
+      'first_name', 'last_name', 'nickname', 'bio', 'phone', 'location', 
+      'website', 'social_links', 'preferences', 'profile_pic_url'
+    ];
+
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) {
+        updates.push(`${field} = ?`);
+        values.push(req.body[field]);
+      }
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+
+    updates.push('updated_at = datetime("now")');
+    values.push(email);
+
+    const updateQuery = `UPDATE users SET ${updates.join(', ')} WHERE email = ?`;
+    db.prepare(updateQuery).run(...values);
+
+    // Return updated user profile
+    const updatedUser = db.prepare(`
+      SELECT id, email, first_name, last_name, nickname, bio, phone, location, 
+             website, social_links, preferences, profile_pic_url, role, verified, 
+             created_at, last_login
+      FROM users WHERE email = ?
+    `).get(email);
+
+    logActivity(email, 'profile_updated', 'User updated profile information');
+    res.json({ success: true, user: updatedUser });
+  } catch (error) {
+    console.error('[Auth] Error updating profile:', error);
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
+
+// GET /api/auth/profile - Get user profile
+router.get('/profile', requireAuth, (req, res) => {
+  try {
+    const { email } = req.user;
+    const db = getDb();
+    const user = db.prepare(`
+      SELECT id, email, first_name, last_name, nickname, bio, phone, location, 
+             website, social_links, preferences, profile_pic_url, role, verified, 
+             created_at, last_login, activity_count
+      FROM users WHERE email = ?
+    `).get(email);
+
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json({ user });
+  } catch (error) {
+    console.error('[Auth] Error fetching profile:', error);
+    res.status(500).json({ error: 'Failed to fetch profile' });
+  }
+});
+
 export default router;

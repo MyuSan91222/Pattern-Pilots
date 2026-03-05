@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Mail, Send, Clock, CheckCircle, AlertCircle, X, MessageSquare, User, Phone } from 'lucide-react';
+import { Mail, Send, Clock, CheckCircle, AlertCircle, X, MessageSquare, User, Phone, Camera, Save, MapPin, Link as LinkIcon, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth';
 import { authApi } from '../api';
@@ -8,6 +8,7 @@ import { authApi } from '../api';
 export default function ProfilePage() {
   const location = useLocation();
   const { user } = useAuth();
+  const fileInputRef = useRef(null);
   const [animateIn, setAnimateIn] = useState(false);
   const [admins, setAdmins] = useState([]);
   const [requests, setRequests] = useState([]);
@@ -15,6 +16,21 @@ export default function ProfilePage() {
   const [selectedAdmin, setSelectedAdmin] = useState('');
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const [activeTab, setActiveTab] = useState('profile'); // 'profile' or 'contact'
+  const [isEditing, setIsEditing] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [profileData, setProfileData] = useState({
+    first_name: '',
+    last_name: '',
+    nickname: '',
+    bio: '',
+    phone: '',
+    location: '',
+    website: '',
+    social_links: '',
+    preferences: '',
+    profile_pic_url: '',
+  });
 
   useEffect(() => {
     setAnimateIn(false);
@@ -23,22 +39,93 @@ export default function ProfilePage() {
   }, [location.pathname]);
 
   useEffect(() => {
-    if (!user) return; // Only fetch if user is authenticated
+    if (!user) return;
+    loadProfile();
     fetchAdmins();
     fetchRequests();
   }, [user]);
 
+  const loadProfile = async () => {
+    try {
+      const { data } = await authApi.getProfile();
+      setProfileData({
+        first_name: data.user.first_name || '',
+        last_name: data.user.last_name || '',
+        nickname: data.user.nickname || '',
+        bio: data.user.bio || '',
+        phone: data.user.phone || '',
+        location: data.user.location || '',
+        website: data.user.website || '',
+        social_links: data.user.social_links || '',
+        preferences: data.user.preferences || '',
+        profile_pic_url: data.user.profile_pic_url || '',
+      });
+      if (data.user.profile_pic_url) {
+        setPreviewUrl(data.user.profile_pic_url);
+      }
+    } catch (err) {
+      console.error('Failed to load profile:', err);
+    }
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setProfileData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleImageChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image must be less than 5MB');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPreviewUrl(reader.result);
+      setProfileData(prev => ({ ...prev, profile_pic_url: reader.result }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveProfile = async () => {
+    if (!profileData.first_name.trim() || !profileData.last_name.trim()) {
+      toast.error('First and last name are required');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await authApi.updateProfile(profileData);
+      toast.success('Profile updated successfully!');
+      setIsEditing(false);
+      await loadProfile();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to update profile');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    loadProfile();
+    setPreviewUrl(profileData.profile_pic_url || null);
+  };
+
   const fetchAdmins = async () => {
     try {
       const { data } = await authApi.getAdmins();
-      console.log('Admins fetched:', data);
       setAdmins(data.admins || []);
-      if (!data.admins || data.admins.length === 0) {
-        console.warn('No admins returned from API');
-      }
     } catch (error) {
       console.error('Failed to load admins:', error);
-      // Set fallback admins so they're always available
       setAdmins([
         { email: 'adminV11@gmail.com', created_at: new Date().toISOString() },
         { email: 'adminV22@gmail.com', created_at: new Date().toISOString() }
@@ -150,23 +237,257 @@ export default function ProfilePage() {
           <p className="text-current text-opacity-60 mt-2">Manage your profile and communicate with admins</p>
         </div>
 
-        {/* User Info Card */}
-        <div className="card p-6 animate-in fade-in slide-in-from-bottom-4" style={{ animationDelay: '100ms' }}>
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-accent to-accent/50 flex items-center justify-center text-white font-bold text-xl">
-              {user?.email?.charAt(0).toUpperCase()}
+        {/* Tabs */}
+        <div className="flex gap-2 border-b border-gray-300">
+          <button
+            onClick={() => setActiveTab('profile')}
+            className={`px-4 py-2 font-medium transition-all border-b-2 ${
+              activeTab === 'profile'
+                ? 'border-b-accent text-accent'
+                : 'border-b-transparent text-current text-opacity-60 hover:text-opacity-80'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <User size={16} />
+              Edit Profile
             </div>
-            <div>
-              <h2 className="text-lg font-semibold text-current">{user?.email}</h2>
-              <p className="text-sm text-current text-opacity-60">Role: <span className="font-medium capitalize">{user?.role}</span></p>
-              <p className="text-xs text-current text-opacity-50 mt-1">Member since {formatDateSimple(user?.created_at)}</p>
+          </button>
+          <button
+            onClick={() => setActiveTab('contact')}
+            className={`px-4 py-2 font-medium transition-all border-b-2 ${
+              activeTab === 'contact'
+                ? 'border-b-accent text-accent'
+                : 'border-b-transparent text-current text-opacity-60 hover:text-opacity-80'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Mail size={16} />
+              Contact Admin
             </div>
-          </div>
+          </button>
         </div>
 
-        {/* Send Message to Admin - Only for regular users */}
-        {user?.role !== 'admin' && (
-        <div className="card p-6 animate-in fade-in slide-in-from-bottom-4" style={{ animationDelay: '200ms' }}>
+        {/* Profile Tab */}
+        {activeTab === 'profile' && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
+            {/* Profile Picture Card */}
+            <div className="card overflow-hidden">
+              <div className="relative h-32 bg-gradient-to-r from-accent/20 to-accent/5">
+                <div className="absolute -bottom-12 left-6">
+                  <div className="relative">
+                    <div className="w-24 h-24 rounded-full border-4 border-white bg-gray-100 overflow-hidden shadow-lg flex items-center justify-center">
+                      {previewUrl ? (
+                        <img src={previewUrl} alt="Profile" className="w-full h-full object-cover" />
+                      ) : (
+                        <Camera size={36} className="text-gray-400" />
+                      )}
+                    </div>
+                    {isEditing && (
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="absolute bottom-0 right-0 w-8 h-8 bg-accent rounded-full flex items-center justify-center text-white shadow-lg hover:bg-accent/90 transition-all"
+                      >
+                        <Camera size={16} />
+                      </button>
+                    )}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                      className="hidden"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-16 px-6 pb-6">
+                {!isEditing ? (
+                  // View Mode
+                  <div>
+                    <div className="mb-6">
+                      <h2 className="text-2xl font-bold text-current">
+                        {profileData.first_name} {profileData.last_name}
+                      </h2>
+                      {profileData.nickname && (
+                        <p className="text-accent text-sm">@{profileData.nickname}</p>
+                      )}
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-6 mb-6">
+                      <div>
+                        <label className="text-xs font-semibold text-current text-opacity-60 uppercase tracking-wider">Phone</label>
+                        <p className="text-current mt-1">{profileData.phone || '—'}</p>
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-current text-opacity-60 uppercase tracking-wider">Location</label>
+                        <p className="text-current mt-1">{profileData.location || '—'}</p>
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="text-xs font-semibold text-current text-opacity-60 uppercase tracking-wider">Website</label>
+                        {profileData.website ? (
+                          <a href={profileData.website} target="_blank" rel="noopener noreferrer" className="text-accent hover:text-accent/80 mt-1 block">
+                            {profileData.website}
+                          </a>
+                        ) : (
+                          <p className="text-current mt-1">—</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {profileData.bio && (
+                      <div className="mb-6 p-4 rounded-lg bg-accent/5 border border-accent/20">
+                        <label className="text-xs font-semibold text-current text-opacity-60 uppercase tracking-wider">Bio</label>
+                        <p className="text-current mt-2 leading-relaxed">{profileData.bio}</p>
+                      </div>
+                    )}
+
+                    <button
+                      onClick={() => setIsEditing(true)}
+                      className="btn-primary w-full"
+                    >
+                      Edit Profile
+                    </button>
+                  </div>
+                ) : (
+                  // Edit Mode
+                  <form onSubmit={(e) => { e.preventDefault(); handleSaveProfile(); }} className="space-y-4">
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-current mb-1">First Name *</label>
+                        <input
+                          type="text"
+                          name="first_name"
+                          value={profileData.first_name}
+                          onChange={handleInputChange}
+                          placeholder="John"
+                          className="input"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-current mb-1">Last Name *</label>
+                        <input
+                          type="text"
+                          name="last_name"
+                          value={profileData.last_name}
+                          onChange={handleInputChange}
+                          placeholder="Doe"
+                          className="input"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-current mb-1">Nickname</label>
+                        <input
+                          type="text"
+                          name="nickname"
+                          value={profileData.nickname}
+                          onChange={handleInputChange}
+                          placeholder="johndoe"
+                          className="input"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-current mb-1">Phone</label>
+                        <input
+                          type="tel"
+                          name="phone"
+                          value={profileData.phone}
+                          onChange={handleInputChange}
+                          placeholder="+1 (555) 123-4567"
+                          className="input"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-current mb-1">Location</label>
+                        <input
+                          type="text"
+                          name="location"
+                          value={profileData.location}
+                          onChange={handleInputChange}
+                          placeholder="San Francisco, CA"
+                          className="input"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-current mb-1">Website</label>
+                        <input
+                          type="url"
+                          name="website"
+                          value={profileData.website}
+                          onChange={handleInputChange}
+                          placeholder="https://example.com"
+                          className="input"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-current mb-1">Bio</label>
+                      <textarea
+                        name="bio"
+                        value={profileData.bio}
+                        onChange={handleInputChange}
+                        placeholder="Tell us about yourself..."
+                        rows="3"
+                        className="input resize-none"
+                      />
+                    </div>
+
+                    <div className="flex gap-3 pt-4">
+                      <button
+                        type="button"
+                        onClick={handleCancel}
+                        disabled={isLoading}
+                        className="btn-ghost flex-1"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={isLoading}
+                        className="btn-primary flex-1 flex items-center justify-center gap-2"
+                      >
+                        {isLoading ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <Save size={16} />
+                            Save Changes
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Contact Admin Tab */}
+        {activeTab === 'contact' && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
+            {/* User Info Card */}
+            <div className="card p-6">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-accent to-accent/50 flex items-center justify-center text-white font-bold text-xl">
+                  {user?.email?.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-current">{user?.email}</h2>
+                  <p className="text-sm text-current text-opacity-60">Role: <span className="font-medium capitalize">{user?.role}</span></p>
+                  <p className="text-xs text-current text-opacity-50 mt-1">Member since {formatDateSimple(user?.created_at)}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Send Message to Admin */}
+            {user?.role !== 'admin' && (
           <h2 className="text-lg font-semibold text-current mb-4 flex items-center gap-2" style={{ fontFamily: 'Syne' }}>
             <MessageSquare size={18} className="text-accent" />
             Contact an Admin
@@ -332,6 +653,8 @@ export default function ProfilePage() {
             <li>✓ Cancel pending requests anytime</li>
           </ul>
         </div>
+          </div>
+        )}
       </div>
     </div>
   );
