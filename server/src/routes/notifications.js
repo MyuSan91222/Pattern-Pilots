@@ -1,6 +1,6 @@
 import express from 'express';
 import { getDb } from '../db/database.js';
-import { requireAuth } from '../utils/auth.js';
+import { requireAuth } from '../middleware/auth.js';
 
 const router = express.Router();
 

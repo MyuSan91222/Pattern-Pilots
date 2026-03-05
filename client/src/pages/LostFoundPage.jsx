@@ -8,7 +8,7 @@ import {
   ArrowLeft, Image, User as UserIcon, Zap,
   Smartphone, Shirt, ShoppingBag, Gem, Key, FileText,
   PawPrint, BookOpen, Trophy, Glasses, Gamepad2,
-  Smile, Paperclip, MoreVertical, Eye, EyeOff,
+  Smile, Paperclip, MoreVertical, Eye, EyeOff, Bookmark, BookmarkCheck,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useLostFoundStore, CATEGORIES } from '../store/lostFoundStore';
@@ -131,7 +131,7 @@ function TypeBadge({ type, status, expired }) {
 
 // ── ItemCard ──────────────────────────────────────────────────────────────────
 
-function ItemCard({ item, onClick }) {
+function ItemCard({ item, onClick, isSaved, onToggleSave }) {
   const [imgErr, setImgErr] = useState(false);
   const { lfSettings } = useLostFoundStore();
   const CatIcon = getCategoryIcon(item.category);
@@ -168,7 +168,16 @@ function ItemCard({ item, onClick }) {
         )}
 
         {/* Type badge — top right */}
-        <div className="absolute top-2.5 right-2.5 z-10">
+        <div className="absolute top-2.5 right-2.5 z-10 flex items-center gap-1.5">
+          {onToggleSave && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onToggleSave(item); }}
+              className={`p-1 rounded-full backdrop-blur-sm transition-all ${isSaved ? 'bg-accent/90 text-white' : 'bg-ink-950/70 text-ink-400 hover:text-accent'}`}
+              title={isSaved ? 'Remove bookmark' : 'Save item'}
+            >
+              {isSaved ? <BookmarkCheck size={12} /> : <Bookmark size={12} />}
+            </button>
+          )}
           <TypeBadge type={item.type} status={item.status} expired={isExpired} />
         </div>
 
@@ -1027,6 +1036,7 @@ function MyListingsView({ onSelectItem, currentUser, serverItems }) {
 
 function BrowseView({ onSelectItem, initialCategory, initialSearch, serverItems }) {
   const { items: localItems, lfSettings } = useLostFoundStore();
+  const { user } = useAuth();
   const [search, setSearch]           = useState(initialSearch  || '');
   const [category, setCategory]       = useState(initialCategory || '');
   const [typeFilter, setTypeFilter]   = useState(lfSettings?.defaultTypeFilter || 'all');
@@ -1037,6 +1047,50 @@ function BrowseView({ onSelectItem, initialCategory, initialSearch, serverItems 
   const [sortBy, setSortBy]           = useState(lfSettings?.defaultSort || 'newest');
   const [showFilters, setShowFilters] = useState(false);
   const [page, setPage]               = useState(1);
+  const [savedIds, setSavedIds]       = useState(new Set());
+  const [savedItems, setSavedItems]   = useState([]);
+  const [showSaved, setShowSaved]     = useState(false);
+
+  // Load saved item IDs
+  useEffect(() => {
+    if (!user) return;
+    lfApi.getSaved().then(({ data }) => {
+      setSavedItems(data.items || []);
+      setSavedIds(new Set((data.items || []).map(i => i.id)));
+    }).catch(() => {});
+  }, [user]);
+
+  const handleToggleSave = async (item) => {
+    if (!user) { toast.error('Sign in to save items'); return; }
+    const id = item.serverId || item.id;
+    if (!id) return;
+    const isSaved = savedIds.has(Number(id));
+    // Optimistic update
+    setSavedIds(prev => {
+      const next = new Set(prev);
+      isSaved ? next.delete(Number(id)) : next.add(Number(id));
+      return next;
+    });
+    try {
+      if (isSaved) {
+        await lfApi.unsaveItem(id);
+        setSavedItems(prev => prev.filter(i => i.id !== Number(id)));
+        toast.success('Removed from saved');
+      } else {
+        await lfApi.saveItem(id);
+        setSavedItems(prev => [...prev, { ...item, id: Number(id) }]);
+        toast.success('Item saved!');
+      }
+    } catch {
+      // Revert optimistic update
+      setSavedIds(prev => {
+        const next = new Set(prev);
+        isSaved ? next.add(Number(id)) : next.delete(Number(id));
+        return next;
+      });
+      toast.error('Failed to update saved items');
+    }
+  };
 
   // Merge server + local items (server items take precedence; dedupe by serverId)
   const allItems = useMemo(() => {

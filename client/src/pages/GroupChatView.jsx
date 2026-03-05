@@ -9,7 +9,7 @@ import {
   ClipboardList, CheckCircle, Clock, XCircle, MessageSquare,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { gcApi } from '../api';
+import { gcApi, presenceApi } from '../api';
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/api$/, '');
 
@@ -324,8 +324,25 @@ function JoinLinkModal({ onClose, onJoined }) {
 function MemberPanel({ group, currentUser, onAddMember, onRemoveMember, onChangeRole, onClose }) {
   const [addEmail, setAddEmail] = useState('');
   const [addResults, setAddResults] = useState([]);
+  const [onlineStatuses, setOnlineStatuses] = useState({});
   const myRole = group?.my_role;
   const canManage = myRole === 'owner' || myRole === 'admin';
+
+  // Fetch online status for all members
+  useEffect(() => {
+    const members = group?.members || [];
+    if (members.length === 0) return;
+    const emails = members.map(m => m.user_email).filter(Boolean);
+    const poll = async () => {
+      try {
+        const { data } = await presenceApi.getOnlineStatus(emails);
+        setOnlineStatuses(data.statuses || {});
+      } catch { /* silent */ }
+    };
+    poll();
+    const id = setInterval(poll, 15000);
+    return () => clearInterval(id);
+  }, [group?.members]);
 
   useEffect(() => {
     if (addEmail.trim().length < 2) { setAddResults([]); return; }
@@ -377,12 +394,20 @@ function MemberPanel({ group, currentUser, onAddMember, onRemoveMember, onChange
 
       {/* Member list */}
       <div className="flex-1 overflow-y-auto p-3 space-y-1">
-        {(group?.members || []).map(m => (
+        {(group?.members || []).map(m => {
+          const online = onlineStatuses[m.user_email];
+          const active = online && (Date.now() - new Date(online + 'Z').getTime()) < 3 * 60 * 1000;
+          return (
           <div key={m.user_email} className="flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-ink-800/50 group">
-            <Avatar email={m.user_email} size={30} />
+            <div className="relative flex-shrink-0">
+              <Avatar email={m.user_email} size={30} />
+              {active && <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-green-400 border border-ink-900" />}
+            </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium text-ink-200 truncate">{shortEmail(m.user_email)}</p>
-              <p className="text-[10px] text-ink-500 truncate">{m.user_email}</p>
+              <p className="text-[10px] truncate" style={{ color: active ? '#4ade80' : undefined }}>
+                {active ? 'Active now' : m.user_email}
+              </p>
             </div>
             <div className="flex items-center gap-1">
               <RoleBadge role={m.role} />
@@ -408,7 +433,8 @@ function MemberPanel({ group, currentUser, onAddMember, onRemoveMember, onChange
               )}
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
