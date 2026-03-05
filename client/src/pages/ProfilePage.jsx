@@ -26,7 +26,6 @@ export default function ProfilePage() {
     bio: '',
     phone: '',
     location: '',
-    website: '',
     social_links: '',
     preferences: '',
     profile_pic_url: '',
@@ -55,7 +54,6 @@ export default function ProfilePage() {
         bio: data.user.bio || '',
         phone: data.user.phone || '',
         location: data.user.location || '',
-        website: data.user.website || '',
         social_links: data.user.social_links || '',
         preferences: data.user.preferences || '',
         profile_pic_url: data.user.profile_pic_url || '',
@@ -323,16 +321,6 @@ export default function ProfilePage() {
                         <label className="text-xs font-semibold text-current text-opacity-60 uppercase tracking-wider">Location</label>
                         <p className="text-current mt-1">{profileData.location || '—'}</p>
                       </div>
-                      <div className="md:col-span-2">
-                        <label className="text-xs font-semibold text-current text-opacity-60 uppercase tracking-wider">Website</label>
-                        {profileData.website ? (
-                          <a href={profileData.website} target="_blank" rel="noopener noreferrer" className="text-accent hover:text-accent/80 mt-1 block">
-                            {profileData.website}
-                          </a>
-                        ) : (
-                          <p className="text-current mt-1">—</p>
-                        )}
-                      </div>
                     </div>
 
                     {profileData.bio && (
@@ -407,17 +395,6 @@ export default function ProfilePage() {
                           value={profileData.location}
                           onChange={handleInputChange}
                           placeholder="San Francisco, CA"
-                          className="input"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-current mb-1">Website</label>
-                        <input
-                          type="url"
-                          name="website"
-                          value={profileData.website}
-                          onChange={handleInputChange}
-                          placeholder="https://example.com"
                           className="input"
                         />
                       </div>

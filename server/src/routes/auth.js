@@ -422,7 +422,7 @@ router.put('/profile', requireAuth, async (req, res) => {
   try {
     const { email } = req.user;
     const {
-      first_name, last_name, nickname, bio, phone, location, website, 
+      first_name, last_name, nickname, bio, phone, location, 
       social_links, preferences, profile_pic_url
     } = req.body;
 
@@ -435,7 +435,7 @@ router.put('/profile', requireAuth, async (req, res) => {
     const values = [];
     const allowedFields = [
       'first_name', 'last_name', 'nickname', 'bio', 'phone', 'location', 
-      'website', 'social_links', 'preferences', 'profile_pic_url'
+      'social_links', 'preferences', 'profile_pic_url'
     ];
 
     for (const field of allowedFields) {
