@@ -42,9 +42,9 @@ export default function AppLayout() {
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-ink-950 page-with-scroll-fade">
+    <div className="h-screen overflow-y-auto bg-ink-950 page-with-scroll-fade">
       <Navbar />
-      <div key={location.pathname} className="flex-1 overflow-y-auto animate-scale-in">
+      <div key={location.pathname} className="animate-scale-in">
         <Outlet />
       </div>
     </div>
