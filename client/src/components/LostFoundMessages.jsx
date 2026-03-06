@@ -545,27 +545,28 @@ export function MessagesView({ currentUser, openConvId, onUnreadChange }) {
 
   const handleRespondRequest = async (id, accepted) => {
     try {
-      await lfApi.respondToMessageRequest(id, accepted);
+      const { data: respondData } = await lfApi.respondToMessageRequest(id, accepted);
       toast.success(accepted ? 'Request accepted! Opening conversation...' : 'Request rejected');
-      
+
       if (accepted) {
         // Wait for database commit
         await new Promise(resolve => setTimeout(resolve, 800));
-        
+
         // Reload conversations
         const { data: convData } = await lfApi.getConversations();
         setConversations(convData.conversations);
-        
-        // Find system conversation
-        const systemConv = convData.conversations.find(c => 
-          c.item_id === 0 || c.item_type === 'system'
-        );
-        
-        if (systemConv) {
-          setActiveConv(systemConv);
+
+        // Use returned conversationId if available, otherwise fall back to system conv
+        const convId = respondData?.conversationId;
+        const targetConv = convId
+          ? convData.conversations.find(c => c.id === convId)
+          : convData.conversations.find(c => c.item_id === 0 || c.item_type === 'system');
+
+        if (targetConv) {
+          setActiveConv(targetConv);
         }
       }
-      
+
       loadIncomingRequests();
     } catch (err) {
       console.error('[MessagesView] Error responding to request:', err);

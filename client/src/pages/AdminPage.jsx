@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Search, Trash2, Shield, User, RefreshCw, MessageCircle, Lock, Unlock, AlertCircle, ClipboardList, CheckCircle, XCircle, Clock, Users, Layers, Ban, ShieldOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { adminApi, gcApi } from '../api';
 
 export default function AdminPage() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [animateIn, setAnimateIn] = useState(false);
   const [tab, setTab] = useState('users');
   const [users, setUsers] = useState([]);
@@ -201,10 +202,11 @@ export default function AdminPage() {
     }
     try {
       await adminApi.sendMessageRequest(selectedUserEmail, requestMessage);
-      toast.success('Message request sent');
+      toast.success(`Message sent to ${selectedUserEmail} — go to Messages to chat`);
       setSelectedUserEmail('');
       setRequestMessage('');
       fetchRequests();
+      navigate('/messages');
     } catch (err) {
       toast.error(err.response?.data?.error || 'Failed to send request');
     }
@@ -227,18 +229,10 @@ export default function AdminPage() {
   const handleAcceptRequest = async (requestId, userEmail) => {
     try {
       await adminApi.acceptUserRequest(requestId);
-      // Show a prominent notification to the admin
-      toast.success((t) => (
-        <div className="flex items-start gap-3">
-          <CheckCircle size={20} className="text-green-400 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="font-semibold">Request Accepted!</p>
-            <p className="text-sm">Notification sent to {userEmail}</p>
-            <p className="text-xs text-ink-400 mt-1">They will see the acceptance popup in their dashboard</p>
-          </div>
-        </div>
-      ), { duration: 5000 });
+      toast.success(`Request from ${userEmail} accepted — conversation created`, { duration: 4000 });
       fetchRequests();
+      // Navigate to messages so admin can see the auto-created conversation
+      navigate('/messages');
     } catch (err) {
       toast.error(err.response?.data?.error || 'Failed to accept request');
     }

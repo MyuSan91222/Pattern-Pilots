@@ -339,6 +339,23 @@ function ItemDetailModal({ item, onClose, onResolve, onDelete, currentUser }) {
 
   // Removed duplicate scroll effect - handled in ChatView with useCallback
 
+  const handleSend = async () => {
+    const text = msgInput.trim();
+    if (!text || !conversation || sending) return;
+    setSending(true);
+    try {
+      const { data } = await lfApi.sendMessage(conversation.id, text);
+      setMessages(prev => [...prev, { ...data.message, reactions: [] }]);
+      setMsgInput('');
+      lastMessageCountRef.current += 1;
+      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to send message');
+    } finally {
+      setSending(false);
+    }
+  };
+
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };

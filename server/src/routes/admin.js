@@ -514,7 +514,7 @@ router.put('/users/:id/ban', (req, res) => {
   if (!user) return res.status(404).json({ error: 'User not found' });
   if (user.role === 'admin') return res.status(403).json({ error: 'Cannot ban an admin user' });
   
-  db.prepare('UPDATE users SET banned_at = datetime("now"), banned_reason = ? WHERE id = ?').run(reason || 'Banned by admin', userId);
+  db.prepare("UPDATE users SET banned_at = datetime('now'), banned_reason = ? WHERE id = ?").run(reason || 'Banned by admin', userId);
   
   // Revoke all refresh tokens for this user
   db.prepare('DELETE FROM refresh_tokens WHERE user_email = ?').run(user.email);
