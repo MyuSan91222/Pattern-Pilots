@@ -277,7 +277,7 @@ export default function Navbar() {
   };
 
   return (
-    <header className="sticky top-0 h-14 border-b border-white/10 bg-ink-950/60 backdrop-blur-xl backdrop-saturate-150 flex items-center px-3 sm:px-6 gap-2 sm:gap-4 flex-shrink-0 z-40 shadow-[0_1px_12px_rgba(0,0,0,0.3)]">
+    <header className="sticky top-0 h-14 border-b border-white/5 bg-ink-950/30 backdrop-blur-2xl backdrop-saturate-150 flex items-center px-3 sm:px-6 gap-2 sm:gap-4 flex-shrink-0 z-40 shadow-[0_1px_20px_rgba(0,0,0,0.15)]">
       {/* Logo */}
       <Link to="/dashboard" className="flex items-center gap-2 flex-shrink-0">
         <div className="w-6 h-6 bg-accent rounded-md flex items-center justify-center">
