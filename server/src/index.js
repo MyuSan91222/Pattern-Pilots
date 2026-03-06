@@ -43,9 +43,16 @@ const allowedOrigins = [
 ];
 app.use(cors({
   origin: (origin, cb) => {
-    // Allow requests with no origin (mobile apps, curl, Render health checks)
-    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
-    cb(new Error(`CORS: origin ${origin} not allowed`));
+    // Allow requests with no origin (curl, Render health checks, mobile)
+    if (!origin) return cb(null, true);
+    // Allow any vercel.app preview/prod URL and any localhost
+    if (
+      allowedOrigins.includes(origin) ||
+      /^https:\/\/[\w-]+\.vercel\.app$/.test(origin) ||
+      /^http:\/\/localhost:\d+$/.test(origin)
+    ) return cb(null, true);
+    // Unknown origin — deny without 500 (browser will block, server stays healthy)
+    return cb(null, false);
   },
   credentials: true,
 }));
