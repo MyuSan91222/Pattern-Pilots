@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+::selection {
+  background-color: #bfdbfe; /* light blue */
+  color: #1e3a5f;
+}
+
 @layer base {
   * { 
     box-sizing: border-box;
@@ -946,7 +951,7 @@
   animation: magnifierPulseRow 3s ease-in-out infinite;
   pointer-events: none;
   z-index: 1;
-  will-change: width, height, opacity;
+  will-change: opacity;
 }
 
 .student-row-selected::after {
@@ -962,7 +967,7 @@
   animation: magnifierPulseOuterRow 3s ease-in-out infinite 0.25s;
   pointer-events: none;
   z-index: 0;
-  will-change: width, height, opacity;
+  will-change: opacity;
 }
 
 @keyframes magnifierPulseRow {
